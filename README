@@ -1,0 +1,4 @@
+RECIPES
+["apps4", "controllers", "core", "email", "extras", "frontend", "gems", "git", "init", "models", "prelaunch", "railsapps", "readme", "routes", "saas", "setup", "testing", "views"]
+PREFERENCES
+{:git=>true, :apps4=>"rails-omniauth", :unit_test=>false, :integration=>false, :fixtures=>false, :email=>"none", :authentication=>"omniauth", :authorization=>"none", :starter_app=>false, :quiet_assets=>true, :local_env_file=>false, :better_errors=>true, :dev_webserver=>"thin", :prod_webserver=>"thin", :database=>"sqlite", :templates=>"erb", :continuous_testing=>"none", :frontend=>"bootstrap3", :omniauth_provider=>"facebook", :form_builder=>"simple_form"}
