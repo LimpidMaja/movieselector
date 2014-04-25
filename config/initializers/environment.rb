@@ -1,0 +1,3 @@
+
+ENV["SEARCHJOY_USERNAME"] = "limpidmaja"
+ENV["SEARCHJOY_PASSWORD"] = "maja"

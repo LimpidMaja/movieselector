@@ -1,0 +1,22 @@
+<%= simple_form_for(@movie) do |f| %>
+  <%= f.error_notification %>
+
+  <div class="form-inputs">
+    <%= f.input :imdb_id %>
+    <%= f.input :tmdb_id %>
+    <%= f.input :trakt_id %>
+    <%= f.input :title %>
+    <%= f.input :year %>
+    <%= f.input :poster %>
+    <%= f.input :imdb_rating %>
+    <%= f.input :imdb_num_votes %>
+    <%= f.input :plot %>
+    <%= f.input :runtime %>
+    <%= f.input :tagline %>
+    <%= f.input :trailer %>
+  </div>
+
+  <div class="form-actions">
+    <%= f.button :submit %>
+  </div>
+<% end %>

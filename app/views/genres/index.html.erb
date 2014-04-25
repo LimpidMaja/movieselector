@@ -1,0 +1,40 @@
+<h1>Listing genres</h1>
+
+<%= form_tag(genres_path, :method => "get", class: "navbar-form", id: "search-form") do %>
+<div class="input-append">
+	<%= text_field_tag :query, params[:query], class: "span2", placeholder: "Search Genres" %>
+	<%= submit_tag "Search", :name => nil %>
+	<% if @suggestion %>
+	Did you mean: <%= link_to @suggestion, companies_path(:query => @suggestion) %>?
+	<% end %>
+</div>
+<% end %>
+<script>
+	$("#query").typeahead({
+	name:"genres",remote:"/genres/autocomplete?query=%QUERY"
+	});
+</script>
+
+<table>
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th colspan="3"></th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <% @genres.each do |genre| %>
+      <tr>
+        <td><%= genre.name %></td>
+        <td><%= link_to 'Show', genre %></td>
+        <td><%= link_to 'Edit', edit_genre_path(genre) %></td>
+        <td><%= link_to 'Destroy', genre, method: :delete, data: { confirm: 'Are you sure?' } %></td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>
+<%= paginate @genres %>
+<br>
+
+<%= link_to 'New Genre', new_genre_path %>

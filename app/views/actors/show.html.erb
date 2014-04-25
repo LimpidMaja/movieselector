@@ -1,0 +1,18 @@
+<p id="notice"><%= notice %></p>
+
+<p>
+  <strong>Name:</strong>
+  <%= @actor.name %>
+</p>
+
+<% if @movies %>
+	<% @movies.each do |movie| %>
+	<p>
+   		<%= movie['title'] %>: <%= movie['imdb_id'] %>
+   	</p>
+	<% end %>
+<% end %>
+
+
+<%= link_to 'Edit', edit_actor_path(@actor) %> |
+<%= link_to 'Back', actors_path %>

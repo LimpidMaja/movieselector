@@ -1,0 +1,17 @@
+<p id="notice"><%= notice %></p>
+
+<p>
+  <strong>Name:</strong>
+  <%= @writer.name %>
+</p>
+
+<% if @movies %>
+	<% @movies.each do |movie| %>
+	<p>
+   		<%= movie['title'] %>: <%= movie['imdb_id'] %>
+   	</p>
+	<% end %>
+<% end %>
+
+<%= link_to 'Edit', edit_writer_path(@writer) %> |
+<%= link_to 'Back', writers_path %>

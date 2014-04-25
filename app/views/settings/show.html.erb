@@ -1,0 +1,21 @@
+<p id="notice"><%= notice %></p>
+
+<p>
+  <strong>Private:</strong>
+  <%= @setting.private %>
+</p>
+
+<p>
+  <strong>Trakt username:</strong>
+  <%= @setting.trakt_username %>
+</p>
+
+<p>
+  <strong>Trakt password:</strong>
+  ************
+</p>
+
+<%= link_to 'Change settings', edit_user_setting_path(@user, @setting), id: 'edit_link' %> 
+<br />
+
+<%= link_to "Import Movies From Trakt", import_trakt_user_setting_path(@user, @setting, :format => :json), remote: true, method: 'get', id: 'trakt_update' %>

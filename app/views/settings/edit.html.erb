@@ -1,0 +1,19 @@
+<h1>Profile settings</h1>
+
+<%= render 'form' %>
+
+<h1>Trakt settings</h1>
+
+<%= simple_form_for([@user, @setting]) do |f| %>
+  <%= f.error_notification %>
+
+  <div class="form-inputs">
+    <%= f.input :trakt_username %>
+    <%= f.input :trakt_password %>
+  </div>
+
+  <div class="form-actions">
+    <%= f.button :submit %>
+  </div>
+<% end %>
+
