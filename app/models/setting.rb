@@ -16,7 +16,7 @@ class Setting < ActiveRecord::Base
     begin
       require 'trakt'
       trakt = Trakt.new
-      trakt.apikey = Rails.application.secrets.trakt_api
+      trakt.apikey = Rails.application.secrets.trakt_API
       trakt.username = trakt_username
       trakt.password = trakt_password
 

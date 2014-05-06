@@ -19,7 +19,7 @@ class MoviesController < ApplicationController
         @suggestion = @movies.suggestions.first
       else
     #    trakt = Trakt.new
-    #    trakt.apikey = Rails.application.secrets.trakt_api
+    #    trakt.apikey = Rails.application.secrets.trakt_API
         
         #trakt_result = trakt.movie.trending
        # if trakt_result

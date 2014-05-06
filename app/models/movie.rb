@@ -140,7 +140,7 @@ class Movie < ActiveRecord::Base
     require 'trakt'
     if !@setting.trakt_username.nil? && !@setting.trakt_password.nil?
       trakt = Trakt.new
-      trakt.apikey = Rails.application.secrets.trakt_api
+      trakt.apikey = Rails.application.secrets.trakt_API
       trakt.username = @setting.trakt_username
       trakt.password = @setting.trakt_password
       
@@ -461,7 +461,7 @@ class Movie < ActiveRecord::Base
         #else
         #  begin
         #    trakt = Trakt.new
-        #    trakt.apikey = Rails.application.secrets.trakt_api
+        #    trakt.apikey = Rails.application.secrets.trakt_API
         #    trakt_result = trakt.movie.summary(tmdb_id)
         #    if trakt_result
         #      my_movie.trakt_id = trakt_result.url
