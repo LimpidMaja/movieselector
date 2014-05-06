@@ -30,6 +30,7 @@ gem 'koala'
 gem 'pg'
 #gem 'trakt_api'
 #gem 'httparty', "0.11.0"
+gem 'rails_12factor', group: :production
 group :development do
   gem 'better_errors'
   gem 'binding_of_caller', :platforms=>[:mri_19, :mri_20, :rbx]
