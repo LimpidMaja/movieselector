@@ -21,7 +21,7 @@ gem 'trakt'
 gem 'themoviedb'
 gem 'jquery-ui-rails'
 gem 'twitter-typeahead-rails', "0.9.3"
-#gem 'mysql2'
+gem 'mysql2'
 gem 'friendly_id'
 gem 'searchjoy'
 gem 'searchkick'
