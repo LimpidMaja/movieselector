@@ -17,7 +17,7 @@ gem 'thin'
 gem 'imdb'
 gem 'omdbapi'
 gem 'awesome_print'
-gem 'trakt'
+gem 'trakt', :git => "https://github.com/LimpidMaja/trakt"
 gem 'themoviedb'
 gem 'jquery-ui-rails'
 gem 'twitter-typeahead-rails', "0.9.3"
@@ -28,7 +28,7 @@ gem 'searchkick'
 gem 'kaminari'
 gem 'koala'
 gem 'pg'
-#gem 'trakt_api'
+#gem 'trakt_api', "0.0.1"
 #gem 'httparty', "0.11.0"
 gem 'rails_12factor', group: :production
 group :development do
