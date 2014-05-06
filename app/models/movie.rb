@@ -776,7 +776,7 @@ class Movie < ActiveRecord::Base
         end 
       else # search trending from trakt  
         trakt = Trakt.new
-        trakt.apikey = Rails.application.secrets.trakt_api
+        trakt.apikey = Rails.application.secrets.trakt_API
         #trakt = TraktApi::Client.new()        
         #trakt_result = trakt.movies.trending()
         trakt_result = trakt.movie.trending
