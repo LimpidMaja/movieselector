@@ -28,7 +28,7 @@ class CompaniesController < ApplicationController
   # GET /companies/1.json
   def show
     #@company = Company.find_by_name(params[:id])
-    @movies = @company.movies
+    @movies = @company.movies.page(params[:page]).per(48) 
   end
 
   # GET /companies/new

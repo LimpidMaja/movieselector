@@ -18,7 +18,7 @@ class DirectorsController < ApplicationController
   # GET /directors/1
   # GET /directors/1.json
   def show
-    @movies = @director.movies
+    @movies = @director.movies.page(params[:page]).per(48) 
   end
 
   # GET /directors/new

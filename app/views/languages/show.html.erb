@@ -6,13 +6,23 @@
 </p>
 
 <% if @movies %>
-	<% @movies.each do |movie| %>
-	<p>
-   		<%= movie['title'] %>: <%= movie['imdb_id'] %>
-   	</p>
-	<% end %>
+	<% count = 0 %>
+	<div style="text-align:center">
+		<% @movies.each do |movie| %>
+			<div style="display: inline-block">
+				<%= render movie %>
+			</div>
+			
+			<% count += 1 %>
+			<% if count > 5 %>
+				<br/>
+				<% count = 0 %>
+			<% end %>
+		<% end %>
+	</div>
 <% end %>
-
+<%= paginate @movies %>
+<br>
 
 <%= link_to 'Edit', edit_language_path(@language) %> |
 <%= link_to 'Back', languages_path %>

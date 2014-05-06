@@ -18,7 +18,7 @@ class GenresController < ApplicationController
   # GET /genres/1
   # GET /genres/1.json
   def show
-    @movies = @genre.movies
+    @movies = @genre.movies.page(params[:page]).per(48) 
   end
 
   # GET /genres/new

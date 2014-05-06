@@ -19,3 +19,5 @@
 <br />
 
 <%= link_to "Import Movies From Trakt", import_trakt_user_setting_path(@user, @setting, :format => :json), remote: true, method: 'get', id: 'trakt_update' %>
+<br />
+<%= link_to "Import Movies From Facebook", import_facebook_user_setting_path(@user, @setting, :format => :json), remote: true, method: 'get', id: 'facebok_update' %>

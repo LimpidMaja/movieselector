@@ -1,0 +1,18 @@
+<%= simple_form_for(@list) do |f| %>
+  <%= f.error_notification %>
+
+  <div class="form-inputs">
+    <%= f.input :name %>
+    <%= f.input :description %>
+    <%= f.input :list_type %>
+    <%= f.input :privacy %>
+    <%= f.input :allow_edit %>
+    <%= f.input :rating %>
+    <%= f.input :votes_count %>
+    <%= f.input :user_id %>
+  </div>
+
+  <div class="form-actions">
+    <%= f.button :submit %>
+  </div>
+<% end %>

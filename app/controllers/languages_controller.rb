@@ -18,7 +18,7 @@ class LanguagesController < ApplicationController
   # GET /languages/1
   # GET /languages/1.json
   def show
-    @movies = @language.movies
+    @movies = @language.movies.page(params[:page]).per(48) 
   end
 
   # GET /languages/new

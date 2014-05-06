@@ -18,7 +18,7 @@ class KeywordsController < ApplicationController
   # GET /keywords/1
   # GET /keywords/1.json
   def show
-    @movies = @keyword.movies
+    @movies = @keyword.movies.page(params[:page]).per(48) 
   end
 
   # GET /keywords/new

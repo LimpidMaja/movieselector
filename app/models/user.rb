@@ -7,6 +7,7 @@ class User < ActiveRecord::Base
   has_many :user_movies
   has_many :movies, through: :user_movies
   validates_presence_of :name
+  has_many :lists
  
   scope :username_starts_with, ->(regex_str) { where(" username LIKE ? OR username LIKE ?", regex_str, regex_str + "_%") }
   
@@ -14,6 +15,8 @@ class User < ActiveRecord::Base
     create! do |user|
       user.provider = auth['provider']
       user.uid = auth['uid']
+      user.access_token_fb = auth['credentials']['token']
+      user.access_token_fb_expires = auth['credentials']['expires_at']
       user.setting = Setting.new
       user.setting.private = false
       if auth['info']

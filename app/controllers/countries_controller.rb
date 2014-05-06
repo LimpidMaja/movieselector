@@ -18,7 +18,7 @@ class CountriesController < ApplicationController
   # GET /countries/1
   # GET /countries/1.json
   def show
-    @movies = @country.movies
+    @movies = @country.movies.page(params[:page]).per(48) 
   end
 
   # GET /countries/new

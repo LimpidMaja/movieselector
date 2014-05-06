@@ -31,30 +31,28 @@ class UsersController < ApplicationController
     if params[:user_id]
       @user = User.find_by_username(params[:user_id])
     else
-      @user = User.find_by_username(params[:id]) 
+      @user = User.find_by_username(params[:id])
+    end         
+   # logger.info " \n SESSION: " + session.to_json + "\n"
+    
+    if params[:query].present? && !params[:query].blank?
+      array = params[:query].split(/[,]/); 
+      @movies = Movie.search_movie(array, @user, params[:page], 48, params[:watched], params[:only_collected], false, true)
+    else 
+      @movies = Movie.search_movie(nil, @user, params[:page], 48, params[:watched], true, false, true)
     end
-    #@tmdb = Tmdb::Movie.latest.to_yaml#Tmdb::Movie.detail(263693).to_yaml#Tmdb::Movie.latest.to_yaml#
-    
-    @movies = @user.movies
-     #print " \n"
-     #*user_movie = @user.user_movies.find_by_movie_id(1)
-     #user_movie.watched = false
-    #user_movie.collection = true
-    # user_movie.date_watched = DateTime.current
-    # user_movie.save
-     ##print " \n"
-    
-    #@movies.each do |movie|
-     # print " \n"
-    # print movie.user_movie
-     #print " \n"
-      #user_movie = UserMovie.find(user_id: @user.id, movie_id: movie.id)
-     # user_movie.watched = false
-     # user_movie.collection = true
-     # user_movie.date_watched = Date.current
-      #user_movie.save
-   # end
-   #@movies = @user.movies
+  end
+  
+  def library
+    @user = current_user
+    @movies = Movie.search_movie(nil, @user, params[:page], 48, params[:watched], true, false, true)
+    render :show
+  end
+  
+  def watchlist
+    @user = current_user
+    @movies = Movie.search_movie(nil, @user, params[:page], 48, params[:watched], false, true, true)
+    render :show
   end
   
   #helper_method :update_movies(user)

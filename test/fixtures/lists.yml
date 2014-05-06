@@ -1,0 +1,21 @@
+# Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  name: MyString
+  description: MyText
+  type: 
+  privacy: MyString
+  allow_edit: false
+  rating: 1.5
+  votes_count: 1
+  user_id: 1
+
+two:
+  name: MyString
+  description: MyText
+  type: 
+  privacy: MyString
+  allow_edit: false
+  rating: 1.5
+  votes_count: 1
+  user_id: 1

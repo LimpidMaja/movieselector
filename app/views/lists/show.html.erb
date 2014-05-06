@@ -1,0 +1,62 @@
+<p id="notice"><%= notice %></p>
+
+<p>
+  <strong>Name:</strong>
+  <%= @list.name %>
+</p>
+
+<p>
+  <strong>Description:</strong>
+  <%= @list.description %>
+</p>
+
+<p>
+  <strong>Type:</strong>
+  <%= @list.list_type %>
+</p>
+
+<p>
+  <strong>Privacy:</strong>
+  <%= @list.privacy %>
+</p>
+
+<p>
+  <strong>Allow edit:</strong>
+  <%= @list.allow_edit %>
+</p>
+
+<p>
+  <strong>Rating:</strong>
+  <%= @list.rating %>
+</p>
+
+<p>
+  <strong>Votes count:</strong>
+  <%= @list.votes_count %>
+</p>
+
+<p>
+  <strong>User:</strong>
+  <%= @list.user_id %>
+</p>
+
+<% if @movies %>
+	<% count = 0 %>
+	<div style="text-align:center">
+		<% @movies.each do |movie| %>
+			<div style="display: inline-block">
+				<%= render movie %>
+			</div>
+			
+			<% count += 1 %>
+			<% if count > 5 %>
+				<br/>
+				<% count = 0 %>
+			<% end %>
+		<% end %>
+	</div>
+<% end %>
+<%= paginate @movies %>
+
+<%= link_to 'Edit', edit_list_path(@list) %> |
+<%= link_to 'Back', lists_path %>

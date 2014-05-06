@@ -1,5 +1,9 @@
 Movieselector::Application.routes.draw do
 
+  resources :lists do
+    get 'page/:page', :action => :index, :on => :collection
+  end
+
   root :to => "home#index"
   get "/autocomplete", :to => "home#autocomplete", :as => :autocomplete_home
   
@@ -9,8 +13,13 @@ Movieselector::Application.routes.draw do
   end
 
   get "/movies/autocomplete", :to => "movies#autocomplete", :as => :autocomplete_movies
-  resources :movies do
+  resources :movies do    
     get 'page/:page', :action => :index, :on => :collection
+    member do
+      post 'add_movie_to_collection', :as => :add_movie_to_collection
+      post 'add_movie_to_watched', :as => :add_movie_to_watched
+      post 'add_movie_to_watchlist', :as => :add_movie_to_watchlist
+    end
   end
 
   get "/actors/autocomplete", :to => "actors#autocomplete", :as => :autocomplete_actors
@@ -54,12 +63,15 @@ Movieselector::Application.routes.draw do
   get '/auth/failure' => 'sessions#failure'
 
   resources :users, :only => [:index, :show, :edit, :update ] do
+    get 'library', :as => :library 
+    get 'watchlist', :as => :watchlist
     resources :movies do
       get 'page/:page', :action => :index, :on => :collection
-    end
+    end        
     resources :settings, :only => [:index, :show, :edit, :update ] do
       member do
         get 'import_trakt', :as => :import_trakt
+        get 'import_facebook', :as => :import_facebook
         get 'check_trakt_import_state', :as => :check_trakt_import_state
       end
     end
@@ -67,6 +79,8 @@ Movieselector::Application.routes.draw do
   get "/:user_id", :to => "users#show", :as => :friendly_user
   get "/:user_id/movies", :to => "movies#index", :as => :friendly_user_movie
   get "/:user_id/settings", :to => "settings#index", :as => :friendly_user_settings
+  get "/:user_id/library", :to => "users#library", :as => :friendly_user_movie_library
+  get "/:user_id/watchlist", :to => "users#watchlist", :as => :friendly_user_movie_watchlist
   
   mount Searchjoy::Engine, at: "admin/searchjoy"
 end

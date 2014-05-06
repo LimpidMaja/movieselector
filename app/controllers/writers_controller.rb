@@ -18,7 +18,7 @@ class WritersController < ApplicationController
   # GET /writers/1
   # GET /writers/1.json
   def show
-    @movies = @writer.movies
+    @movies = @writer.movies.page(params[:page]).per(48) 
   end
 
   # GET /writers/new
