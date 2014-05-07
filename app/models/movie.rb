@@ -807,7 +807,9 @@ class Movie < ActiveRecord::Base
        # List.update_trakt_trending
         list = List.find_by_name_and_list_type('Trending', 'official')
         #logger.info "MOU LISR: " + Movie.first.list_movies.to_yaml
-        @movies = Movie.includes(:list_movies).where("list_movies.list_id = ?", list.id).references(:list_movies).order("list_movies.list_order ASC").page(page).per(page_size) 
+        if list
+          @movies = Movie.includes(:list_movies).where("list_movies.list_id = ?", list.id).references(:list_movies).order("list_movies.list_order ASC").page(page).per(page_size)
+        end 
         #@movies = List.find_by_name_and_list_type('Trending', 'official').movies.page(page).per(48) 
         if @movies
 =begin
