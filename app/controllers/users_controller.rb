@@ -55,6 +55,11 @@ class UsersController < ApplicationController
     render :show
   end
   
+  def lists
+    @user = current_user
+    @lists = List.find_by_user(@user)
+  end
+  
   #helper_method :update_movies(user)
   #def update_movies    
   #  require 'trakt'

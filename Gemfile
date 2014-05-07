@@ -28,6 +28,7 @@ gem 'searchkick'
 gem 'kaminari'
 gem 'koala'
 gem 'pg'
+gem 'clockwork'
 #gem 'trakt_api', "0.0.1"
 #gem 'httparty', "0.11.0"
 gem 'rails_12factor', group: :production

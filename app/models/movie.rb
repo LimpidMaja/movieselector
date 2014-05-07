@@ -13,7 +13,7 @@ class Movie < ActiveRecord::Base
   has_many :actors, through: :movie_actors
   has_many :user_movies
   has_many :users, through: :user_movies
-  has_many :lists
+  has_many :list_movies
   has_many :lists, through: :list_movies
   
   attr_accessor :watched
@@ -422,7 +422,7 @@ class Movie < ActiveRecord::Base
                 if crew.profile_path
                   my_writer.image = 'http://image.tmdb.org/t/p/w300' + crew.profile_path
                 end
-              my_writer.save
+                my_writer.save
               end
               if my_movie.id
                 writer_role = MovieWriter.find_by_writer_id_and_movie_id(my_writer.id, my_movie.id)
@@ -432,8 +432,8 @@ class Movie < ActiveRecord::Base
                 writer_role.movie = my_movie
                 writer_role.writer = my_writer
               end
-            writer_role.role = crew.job
-            my_movie.movie_writers << writer_role unless !my_movie.movie_writers.find{|item| item[:writer_id] == writer_role.writer_id && item[:role] == writer_role.role }.nil?
+              writer_role.role = crew.job
+              my_movie.movie_writers << writer_role unless !my_movie.movie_writers.find{|item| item[:writer_id] == writer_role.writer_id && item[:role] == writer_role.role }.nil?
             end
           end
         rescue => e
@@ -623,7 +623,36 @@ class Movie < ActiveRecord::Base
     end
   end
   
-  def self.update_watchlist(user, movie)
+  def self.create_list(user, name, description, privacy, type, allow_edit, edit_privacy, movie)
+    if user.present?
+      lists = List.find_by_user_id(user.id)
+      list = lists.find { |l| l.name == name }   
+      
+      if list.nil?
+        list = List.new
+        list.name = name        
+        list.description = description
+        list.user = user
+        list.privacy = privacy
+        list.allow_edit = allow_edit
+        list.list_type = type
+        list.edit_privacy = edit_privacy
+        
+        list.movies << movie
+        list.save
+        return true 
+      else
+        list_movie = ListMovie.find_by_list_id_and_movie_id(list.id, movie.id)
+        if !list_movie
+          list.movies << movie
+          list.save
+          return true 
+        end
+      end           
+    end
+  end
+  
+  def self.add_to_list(user, movie, list)
     if user.present? && movie.present?
       watchlist = List.find_by_user_id_and_watchlist(user.id, true)
       if !watchlist
@@ -774,7 +803,14 @@ class Movie < ActiveRecord::Base
             end
           end
         end 
-      else # search trending from trakt  
+      else # search trending from trakt 
+       # List.update_trakt_trending
+        list = List.find_by_name_and_list_type('Trending', 'official')
+        #logger.info "MOU LISR: " + Movie.first.list_movies.to_yaml
+        @movies = Movie.includes(:list_movies).where("list_movies.list_id = ?", list.id).references(:list_movies).order("list_movies.list_order ASC").page(page).per(page_size) 
+        #@movies = List.find_by_name_and_list_type('Trending', 'official').movies.page(page).per(48) 
+        if @movies
+=begin
         trakt = Trakt.new
         trakt.apikey = Rails.application.secrets.trakt_API
         #trakt = TraktApi::Client.new()        
@@ -788,7 +824,7 @@ class Movie < ActiveRecord::Base
            
           @movies = Movie.where(:tmdb_id => tmdb_ids)
           @movies = @movies.sort_by { |r| order_hash[r.tmdb_id.to_s] }
-          
+=end          
           if user.present? 
             @user_movies = UserMovie.where("user_id = ? AND movie_id IN (?)", user.id, @movies.map(&:id))
             @movies.each do |movie|
@@ -806,7 +842,7 @@ class Movie < ActiveRecord::Base
               end
             end        
           end          
-          @movies =  Kaminari.paginate_array(@movies).page(page).per(48) 
+          #@movies =  Kaminari.paginate_array(@movies).page(page).per(48) 
         else # search popular
           logger.info "SEARCH POPULAR"
           @movies = Movie.search "*", where: {imdb_num_votes: {gt: 150000}}, order: {imdb_rating: :desc, imdb_num_votes: :desc}, page: page, per_page: page_size

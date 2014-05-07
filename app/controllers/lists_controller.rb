@@ -4,7 +4,14 @@ class ListsController < ApplicationController
   # GET /lists
   # GET /lists.json
   def index
-    @lists = List.all
+    if params[:user_id]
+      authenticate_user!
+      correct_user_by_user_id?
+      @user = current_user
+      @lists = current_user.lists
+    else
+      @lists = List.all
+    end
   end
 
   # GET /lists/1

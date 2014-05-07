@@ -67,6 +67,9 @@ Movieselector::Application.routes.draw do
     get 'watchlist', :as => :watchlist
     resources :movies do
       get 'page/:page', :action => :index, :on => :collection
+    end    
+    resources :lists do
+      get 'page/:page', :action => :index, :on => :collection
     end        
     resources :settings, :only => [:index, :show, :edit, :update ] do
       member do
@@ -78,6 +81,7 @@ Movieselector::Application.routes.draw do
   end
   get "/:user_id", :to => "users#show", :as => :friendly_user
   get "/:user_id/movies", :to => "movies#index", :as => :friendly_user_movie
+  get "/:user_id/lists", :to => "lists#index", :as => :friendly_user_list
   get "/:user_id/settings", :to => "settings#index", :as => :friendly_user_settings
   get "/:user_id/library", :to => "users#library", :as => :friendly_user_movie_library
   get "/:user_id/watchlist", :to => "users#watchlist", :as => :friendly_user_movie_watchlist
