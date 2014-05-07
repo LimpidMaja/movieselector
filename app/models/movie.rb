@@ -804,7 +804,7 @@ class Movie < ActiveRecord::Base
           end
         end 
       else # search trending from trakt 
-        List.update_trakt_trending
+       # List.update_trakt_trending
         list = List.find_by_name_and_list_type('Trending', 'official')
         #logger.info "MOU LISR: " + Movie.first.list_movies.to_yaml
         if list
