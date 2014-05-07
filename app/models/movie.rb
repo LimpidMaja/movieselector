@@ -846,6 +846,23 @@ class Movie < ActiveRecord::Base
         else # search popular
           logger.info "SEARCH POPULAR"
           @movies = Movie.search "*", where: {imdb_num_votes: {gt: 150000}}, order: {imdb_rating: :desc, imdb_num_votes: :desc}, page: page, per_page: page_size
+          if user.present? 
+            @user_movies = UserMovie.where("user_id = ? AND movie_id IN (?)", user.id, @movies.map(&:id))
+            @movies.each do |movie|
+              user_movie = @user_movies.find{|item| item[:movie_id] == movie.id}
+              if !user_movie.nil? 
+                if user_movie.watched == true
+                  movie.watched = true
+                end
+                if user_movie.collection == true
+                  movie.collected = true
+                end
+                if user_movie.watchlist == true
+                  movie.watchlist = true
+                end
+              end
+            end        
+          end          
         end 
       end
     end
