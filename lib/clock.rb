@@ -21,5 +21,7 @@ module Clockwork
   every(5.minutes, 'update_trakt_trending') { List.update_trakt_trending }
   #every(1.hour, 'hourly.job')
 
-  #every(1.day, 'midnight.job', :at => '00:00')
+  every(1.day, 'midnight_top_250_update', :at => '00:01')  {List.update_imdb_top_250 }
+  every(1.day, 'midnight_showtimes_slovenia_update', :at => '00:01') { Showtime.udpate_showtimes_slovenia }
+  
 end

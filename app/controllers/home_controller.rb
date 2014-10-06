@@ -48,9 +48,9 @@ class HomeController < ApplicationController
    
     if params[:query].present? && !params[:query].blank?
       array = params[:query].split(/[,]/); 
-      @movies = Movie.search_movie(array, @user, params[:page], 48, false, false, false, false)
-    else       
-      @movies = Movie.search_movie(nil, @user, params[:page], 48, false, false, false, false)
+      @movies = Movie.search_movie(array, @user, current_user, params[:page], 48, false, false, false, false)
+    else 
+      @movies = Movie.search_movie(nil, @user,current_user, params[:page], 48, false, false, false, false)
     end
 
         # rating_ranges = [{to: 3}, {from: 3, to: 5}, {from: 5, to: 7}, {from: 7}]

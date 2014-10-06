@@ -15,10 +15,12 @@ class Movie < ActiveRecord::Base
   has_many :users, through: :user_movies
   has_many :list_movies
   has_many :lists, through: :list_movies
+  has_many :showtimes
   
   attr_accessor :watched
   attr_accessor :collected
   attr_accessor :watchlist
+  attr_accessor :voting_score
   
   #after_initialize :set_attr
 
@@ -145,7 +147,7 @@ class Movie < ActiveRecord::Base
       trakt.password = @setting.trakt_password
       
       begin
-        trakt_result = trakt.activity.collection(trakt.username)
+        trakt_result = trakt.account.movies_all(trakt.username, 'min')         
         if trakt_result
           id_map = []
           trakt_result.each do |movie|
@@ -153,10 +155,15 @@ class Movie < ActiveRecord::Base
             my_movie = add_movie(tmdb_id, movie, nil)
             if my_movie
               id_map << my_movie.id
-              update_user_movie(user, my_movie, nil, true, nil)
+              if movie.plays > 0
+                watched = true
+              else
+                watched = false
+              end
+              update_user_movie(user, my_movie, watched, movie.in_collection, nil)
             end 
           end
-          UserMovie.where.not(movie_id: id_map).where(user_id: user.id).update_all(:collection => false)
+          #UserMovie.where.not(movie_id: id_map).where(user_id: user.id).update_all(:collection => false)
           user_movies = UserMovie.where(user_id: user.id, collection: false, watched: false, watchlist: false)
           user_movies.each do |user_movie|
             if !user_movie.watched
@@ -168,7 +175,7 @@ class Movie < ActiveRecord::Base
       rescue => e
         logger.error "\n TRAKT COLLECTED RESULT ERROR: " + e.to_s + "\n"
       end
-      
+=begin     
       begin
         trakt_wathed_result = trakt.activity.watched(trakt.username)
         if trakt_wathed_result
@@ -183,8 +190,8 @@ class Movie < ActiveRecord::Base
       rescue => e
         logger.error "\n TRAKT WATCHED RESULT ERROR: " + e.to_s + "\n"
       end
+=end    
     end
-    
   end
   
   def self.add_new_from_tmdb
@@ -213,6 +220,118 @@ class Movie < ActiveRecord::Base
     end
   end
   
+  def self.add_movie_with_imdb(imdb_result, poster, directors)
+    if imdb_result.present?
+      if !imdb_result.id.nil? && !imdb_result.id.blank?      
+        logger.info "MOVIE BY IMDB ID"      
+        my_movie = Movie.find_by_imdb_id('tt' + imdb_result.id)
+      end
+      if (!my_movie)
+        my_movie = Movie.new        
+        my_movie.missing_data = true
+        my_movie.imdb_id = 'tt' + imdb_result.id
+        my_movie.poster = imdb_result.poster unless imdb_result.poster == 'N/A'
+        if !my_movie.poster
+          my_movie.poster = poster
+        end
+        my_movie.runtime = imdb_result.length
+        my_movie.plot = imdb_result.plot
+        my_movie.rated = imdb_result.mpaa_rating unless imdb_result.mpaa_rating == 'N/A'
+        my_movie.title = imdb_result.title(true)
+        my_movie.year = imdb_result.year
+        my_movie.release_date = imdb_result.release_date
+        my_movie.imdb_rating = imdb_result.rating
+        my_movie.imdb_num_votes = imdb_result.votes.to_i
+        my_movie.tagline = imdb_result.tagline
+        
+        puts "GENRES: " + imdb_result.genres.to_yaml
+        imdb_result.genres.each do |genre|
+          my_genre = Genre.find_by_name(genre.strip)
+          if !my_genre
+            my_genre = Genre.new
+            my_genre.name = genre.strip
+            my_genre.save
+          end
+          my_movie.genres << my_genre unless !my_movie.genres.find{|item| item[:name] == my_genre.name}.nil?
+        end
+        
+        puts "COUNTRIES: " + imdb_result.countries.to_yaml
+        imdb_result.countries.each do |country|
+          my_country = Country.find_by_name(country.strip)
+          if !my_country
+            my_country = Country.new
+            my_country.name = country
+            my_country.save
+          end
+          my_movie.countries << my_country unless !my_movie.countries.find{|item| item[:name] == my_country.name}.nil?
+        end
+        
+        if directors
+          directors.each do |director|            
+            my_director = Director.find_by_name(director.strip)
+            if !my_director
+              my_director = Director.new
+              my_director.name = director.strip              
+              my_director.save
+            end
+            my_movie.directors << my_director unless !my_movie.directors.find{|item| item[:name] == my_director.name}.nil?
+          end
+        end
+        
+        logger.info "MY MOVIE: \n"
+        logger.info my_movie.to_yaml
+        logger.info "\n END \n"
+        my_movie.save
+        return my_movie
+      end
+    end
+  end
+  
+  def self.add_movie_with_omdb(imdb_result)
+    if imdb_result.present?
+      if !imdb_result.imdb_id.nil? && !imdb_result.imdb_id.blank?      
+        logger.info "MOVIE BY IMDB ID"      
+        my_movie = Movie.find_by_imdb_id(imdb_result.imdb_id)
+      end
+      if (!my_movie)
+        my_movie = Movie.new        
+        my_movie.missing_data = true
+        my_movie.imdb_id = imdb_result.imdb_id
+        my_movie.rated = imdb_result.rated unless imdb_result.rated == 'N/A'
+        my_movie.poster = imdb_result.poster unless imdb_result.poster == 'N/A'
+        my_movie.runtime = imdb_result.runtime unless imdb_result.runtime.to_i < 5
+        my_movie.plot = imdb_result.plot
+        my_movie.title = imdb_result.title
+        my_movie.year = imdb_result.year
+        my_movie.release_date = imdb_result.released
+        my_movie.imdb_rating = imdb_result.imdb_rating
+        imdb_result.imdb_votes.gsub!(',','') if imdb_result.imdb_votes.is_a?(String)
+        my_movie.imdb_num_votes = imdb_result.imdb_votes.to_i
+        my_movie.awards = imdb_result.awards unless imdb_result.awards == 'N/A'
+        
+        if imdb_result.genre
+          genres = imdb_result.genre.split(',')
+          puts "GENRES: " + genres.to_yaml
+          genres.each do |genre|
+            my_genre = Genre.find_by_name(genre.strip)
+            if !my_genre
+              my_genre = Genre.new
+              my_genre.name = genre.strip
+              my_genre.save
+            end
+            my_movie.genres << my_genre unless !my_movie.genres.find{|item| item[:name] == my_genre.name}.nil?
+          end
+        end
+        
+        logger.info "MY MOVIE: \n"
+        logger.info my_movie.to_yaml
+        logger.info "\n END \n"
+        my_movie.save
+        return my_movie
+      end
+    end
+  end
+    
   def self.add_movie(tmdb_id, movie, update_imdb)
     if tmdb_id.present?
       logger.info "MOVIE BY TMDB ID"
@@ -551,7 +670,7 @@ class Movie < ActiveRecord::Base
     return my_movie    
   end
   
-  def self.user_movie_watched(user, movie_id)
+  def self.toggle_user_movie_watched(user, movie_id)
     if user.present? && movie_id.present?
       user_movie = UserMovie.find_by_user_id_and_movie_id(user.id, movie_id)
       if !user_movie
@@ -622,7 +741,7 @@ class Movie < ActiveRecord::Base
       end      
     end
   end
-  
+    
   def self.create_list(user, name, description, privacy, type, allow_edit, edit_privacy, movie)
     if user.present?
       lists = List.find_by_user_id(user.id)
@@ -690,7 +809,12 @@ class Movie < ActiveRecord::Base
         user_movie.user = user
       end 
       if !seen.nil?
-        user_movie.watched = seen        
+        if user_movie.watched == false && seen == true 
+           user_movie.date_watched = Time.now
+        elsif user_movie.watched == true && seen == false
+           user_movie.date_watched = nil
+        end 
+        user_movie.watched = seen               
       end
       if !collected.nil?
         user_movie.collection = collected
@@ -707,9 +831,95 @@ class Movie < ActiveRecord::Base
         return user_movie
       end      
     end
-  end
+  end    
     
-  def self.search_movie(params, user, page, page_size, watched, only_collected, watchlist, only_user_movies)
+  def self.user_movie_latest_watched(user, current_user)
+    if user.present?
+     @movies = Movie.includes(:user_movies).where("user_movies.user_id = ? AND user_movies.watched = true ", user.id).references(:user_movies).limit(10).order("user_movies.date_watched DESC")
+        
+     if !current_user.nil? 
+        if current_user.id == user.id
+          @movies.each do |movie|
+            user_movie = movie.user_movies.first
+            if !user_movie.nil? 
+              if user_movie.watched == true
+                movie.watched = true
+              end
+              if user_movie.collection == true
+                movie.collected = true
+              end
+              if user_movie.watchlist == true
+                movie.watchlist = true
+              end
+            end
+          end
+        else
+          id_map = @movies.map{|m| m.id}        
+          current_user_movies = UserMovie.where(:user_id => current_user.id, :movie_id => id_map)
+                
+          @movies.each do |movie|
+            user_movie = current_user_movies.detect{|m| m.movie_id == movie.id }          
+            if !user_movie.nil? 
+              if user_movie.watched == true
+                movie.watched = true
+              end
+              if user_movie.collection == true
+                movie.collected = true
+              end
+              if user_movie.watchlist == true
+                movie.watchlist = true
+              end
+            end
+          end 
+        end      
+      end
+    end
+  end
+  
+  def self.user_movie_watched(user, current_user, page, page_size)
+    if user.present?
+     @movies = Movie.includes(:user_movies).where("user_movies.user_id = ? AND user_movies.watched = true", user.id).references(:user_movies).page(page).per(page_size) 
+          
+     if !current_user.nil? 
+        if current_user.id == user.id
+          @movies.each do |movie|
+            user_movie = movie.user_movies.first
+            if !user_movie.nil? 
+              if user_movie.watched == true
+                movie.watched = true
+              end
+              if user_movie.collection == true
+                movie.collected = true
+              end
+              if user_movie.watchlist == true
+                movie.watchlist = true
+              end
+            end
+          end
+        else
+          id_map = @movies.map{|m| m.id}        
+          current_user_movies = UserMovie.where(:user_id => current_user.id, :movie_id => id_map)
+                
+          @movies.each do |movie|
+            user_movie = current_user_movies.detect{|m| m.movie_id == movie.id }          
+            if !user_movie.nil? 
+              if user_movie.watched == true
+                movie.watched = true
+              end
+              if user_movie.collection == true
+                movie.collected = true
+              end
+              if user_movie.watchlist == true
+                movie.watchlist = true
+              end
+            end
+          end 
+        end      
+      end
+    end
+  end
+  
+  def self.search_movie(params, user, current_user, page, page_size, watched, only_collected, watchlist, only_user_movies)
    
     if params.present?
       logger.info params
@@ -750,22 +960,65 @@ class Movie < ActiveRecord::Base
       
       if user.present?
         @movies = Movie.search(search_params, include: [:user_movies], where: where, suggest: true, boost: :imdb_rating, page: page, per_page: page_size)
-        @movies.each do |movie|
-          user_movie = @user_movies.find{|item| item[:movie_id] == movie.id}
-          if !user_movie.nil? 
-            if user_movie.watched == true
-              movie.watched = true
-            end
-            if user_movie.collection == true
-              movie.collected = true
-            end
-            if user_movie.watchlist == true
-              movie.watchlist = true
-            end
-          end  
-        end    
+        
+        if !current_user.nil? 
+          if current_user.id == user.id
+            @movies.each do |movie|
+              user_movie = @user_movies.find{|item| item[:movie_id] == movie.id}
+              if !user_movie.nil? 
+                if user_movie.watched == true
+                  movie.watched = true
+                end
+                if user_movie.collection == true
+                  movie.collected = true
+                end
+                if user_movie.watchlist == true
+                  movie.watchlist = true
+                end
+              end   
+            end    
+          else
+            id_map = @movies.map{|m| m.id}        
+            current_user_movies = UserMovie.where(:user_id => current_user.id, :movie_id => id_map)
+                  
+            @movies.each do |movie|
+              user_movie = current_user_movies.detect{|m| m.movie_id == movie.id }          
+              if !user_movie.nil? 
+                if user_movie.watched == true
+                  movie.watched = true
+                end
+                if user_movie.collection == true
+                  movie.collected = true
+                end
+                if user_movie.watchlist == true
+                  movie.watchlist = true
+                end
+              end
+            end 
+          end      
+        end  
       else
         @movies = Movie.search(search_params, where: where, suggest: true, boost: :imdb_rating, page: page, per_page: page_size)
+        
+        if !current_user.nil?           
+          id_map = @movies.map{|m| m.id}        
+          current_user_movies = UserMovie.where(:user_id => current_user.id, :movie_id => id_map)
+                
+          @movies.each do |movie|
+            user_movie = current_user_movies.detect{|m| m.movie_id == movie.id }          
+            if !user_movie.nil? 
+              if user_movie.watched == true
+                movie.watched = true
+              end
+              if user_movie.collection == true
+                movie.collected = true
+              end
+              if user_movie.watchlist == true
+                movie.watchlist = true
+              end
+            end 
+          end      
+        end  
       end
       
       @suggestion = @movies.suggestions.first
@@ -780,7 +1033,7 @@ class Movie < ActiveRecord::Base
         elsif watchlist.present? && only_collected.present?
           @movies = Movie.includes(:user_movies).where("user_movies.user_id = ? AND user_movies.watched = false AND (user_movies.watchlist = true OR user_movies.collection = true)", user.id).references(:user_movies).page(page).per(page_size)
         elsif watched.present?   
-          @movies = Movie.includes(:user_movies).where("user_movies.user_id = ? AND user_movies.watched = true)", user.id).references(:user_movies).page(page).per(page_size)
+          @movies = Movie.includes(:user_movies).where("user_movies.user_id = ? AND user_movies.watched = true", user.id).references(:user_movies).page(page).per(page_size)
         elsif only_collected.present? 
           @movies = Movie.includes(:user_movies).where("user_movies.user_id = ? AND user_movies.watched = false AND user_movies.collection = true", user.id).references(:user_movies).page(page).per(page_size)   
         elsif watchlist.present?   
@@ -789,22 +1042,46 @@ class Movie < ActiveRecord::Base
           @movies = Movie.includes(:user_movies).where("user_movies.user_id = ? AND user_movies.watched = false", user.id).references(:user_movies).page(page).per(page_size) 
         end 
         
-        @movies.each do |movie|
-          user_movie = movie.user_movies.first
-          if !user_movie.nil? 
-            if user_movie.watched == true
-              movie.watched = true
-            end
-            if user_movie.collection == true
-              movie.collected = true
-            end
-            if user_movie.watchlist == true
-              movie.watchlist = true
-            end
-          end
-        end 
+        if !current_user.nil? 
+          if current_user.id == user.id
+            @movies.each do |movie|
+              user_movie = movie.user_movies.first
+              if !user_movie.nil? 
+                if user_movie.watched == true
+                  movie.watched = true
+                end
+                if user_movie.collection == true
+                  movie.collected = true
+                end
+                if user_movie.watchlist == true
+                  movie.watchlist = true
+                end
+              end
+            end            
+          else
+            id_map = @movies.map{|m| m.id}        
+            current_user_movies = UserMovie.where(:user_id => current_user.id, :movie_id => id_map)
+                  
+            @movies.each do |movie|
+              user_movie = current_user_movies.detect{|m| m.movie_id == movie.id }          
+              if !user_movie.nil? 
+                if user_movie.watched == true
+                  movie.watched = true
+                end
+                if user_movie.collection == true
+                  movie.collected = true
+                end
+                if user_movie.watchlist == true
+                  movie.watchlist = true
+                end
+              end
+            end 
+          end      
+        end   
       else # search trending from trakt 
+       # List.update_imdb_top_250
        # List.update_trakt_trending
+       # Showtime.udpate_showtimes_slovenia
         list = List.find_by_name_and_list_type('Trending', 'official')
         #logger.info "MOU LISR: " + Movie.first.list_movies.to_yaml
         if list
@@ -827,8 +1104,8 @@ class Movie < ActiveRecord::Base
           @movies = Movie.where(:tmdb_id => tmdb_ids)
           @movies = @movies.sort_by { |r| order_hash[r.tmdb_id.to_s] }
 =end          
-          if user.present? 
-            @user_movies = UserMovie.where("user_id = ? AND movie_id IN (?)", user.id, @movies.map(&:id))
+          if current_user.present? 
+            @user_movies = UserMovie.where("user_id = ? AND movie_id IN (?)", current_user.id, @movies.map(&:id))
             @movies.each do |movie|
               user_movie = @user_movies.find{|item| item[:movie_id] == movie.id}
               if !user_movie.nil? 
@@ -848,8 +1125,8 @@ class Movie < ActiveRecord::Base
         else # search popular
           logger.info "SEARCH POPULAR"
           @movies = Movie.search "*", where: {imdb_num_votes: {gt: 150000}}, order: {imdb_rating: :desc, imdb_num_votes: :desc}, page: page, per_page: page_size
-          if user.present? 
-            @user_movies = UserMovie.where("user_id = ? AND movie_id IN (?)", user.id, @movies.map(&:id))
+          if current_user.present? 
+            @user_movies = UserMovie.where("user_id = ? AND movie_id IN (?)", current_user.id, @movies.map(&:id))
             @movies.each do |movie|
               user_movie = @user_movies.find{|item| item[:movie_id] == movie.id}
               if !user_movie.nil? 
@@ -867,8 +1144,7 @@ class Movie < ActiveRecord::Base
           end          
         end 
       end
-    end
-    
+    end    
     return @movies
   end
   

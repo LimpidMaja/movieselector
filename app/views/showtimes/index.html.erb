@@ -1,0 +1,75 @@
+<h1>Showtimes</h1>
+
+<div style="display: inline-block">
+	<% @locations.each do |cinema_location| %>
+		<div style="float:left;">| <%= link_to cinema_location, showtimes_path(:location => cinema_location.parameterize.underscore,:date => params[:date] )  %> | </div>
+	<% end %>
+</div>
+<br/>
+<br/>
+<div style="display: inline-block">
+	<% @dates.each do |date| %>
+		<div style="float:left;">| <%= link_to date, showtimes_path(:date => date.parameterize.underscore, :location => params[:location]  )  %> | </div>
+	<% end %>
+</div>
+<br/>
+<br/>
+<% if @movies %>
+	<% count = 0 %>
+	<div style="text-align:center">
+		<% @movies.each do |movie, showtimes| %>
+			<div style="display: inline-block">
+				<%= render partial: "showtime", object: showtimes, locals: {movie: movie} %>					
+			</div>
+			
+			<% count += 1 %>
+			<% if count > 3 %>
+				<br/>
+				<% count = 0 %>
+			<% end %>
+		<% end %>
+	</div>
+<% end %>
+
+
+<table>
+  <thead>
+    <tr>
+      <th>Movie</th>
+      <th>Title</th>
+      <th>Original title</th>
+      <th>Cinema</th>
+      <th>Date</th>
+      <th>Is 3d</th>
+      <th>Is synchronized</th>
+      <th>City</th>
+      <th>Country</th>
+      <th>State</th>
+      <th colspan="3"></th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <% @showtimes.each do |showtime| %>
+      <tr>
+        <td><%= showtime.movie_id %></td>
+        <td><%= showtime.title %></td>
+        <td><%= showtime.original_title %></td>
+        <td><%= showtime.cinema %></td>
+        <td><%= showtime.datetime %></td>
+        <td><%= showtime.is_3d %></td>
+        <td><%= showtime.is_synchronized %></td>
+        <td><%= showtime.city %></td>
+        <td><%= showtime.country %></td>
+        <td><%= showtime.state %></td>
+        <td><%= link_to 'Show', showtime %></td>
+        <td><%= link_to 'Edit', edit_showtime_path(showtime) %></td>
+        <td><%= link_to 'Destroy', showtime, method: :delete, data: { confirm: 'Are you sure?' } %></td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>
+
+<br>
+
+<%= link_to 'New Showtime', new_showtime_path %>

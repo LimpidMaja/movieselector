@@ -1,0 +1,13 @@
+<%= render "header" %>
+<br/>
+<% if @movies %>
+	<div style="text-align:center">
+		<% @movies.each do |movie| %>
+			<div style="display: inline-block">
+				<%= render movie %>
+			</div>			
+		<% end %>
+	</div>
+<%= paginate @movies %>
+<% end %>
+

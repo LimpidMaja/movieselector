@@ -1,0 +1,23 @@
+<%= simple_form_for(@event) do |f| %>
+  <%= f.error_notification %>
+
+  <div class="form-inputs">
+    <%= f.input :name %>
+    <%= f.input :description %>
+    <%= f.input :event_date %>
+    <%= f.input :event_time %>
+    <%= f.input :place %>
+    <%= f.input :time_limit %>
+    <%= f.input :minimum_voting_percent %>
+    <%= f.input :users_can_add_movies %>
+    <%= f.input :num_add_movies_by_user %>
+    <%= f.input :num_votes_per_user %>
+    <%= f.input :tie_knockout %>
+    <%= f.input :knockout_time_limit %>
+    <%= f.input :wait_time_limit %>
+  </div>
+
+  <div class="form-actions">
+    <%= f.button :submit %>
+  </div>
+<% end %>

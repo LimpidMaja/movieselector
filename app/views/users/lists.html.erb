@@ -1,0 +1,29 @@
+<%= render "header" %>
+<br/>
+<% if @lists %>
+	<div>
+		<% @lists.each do |list| %>		
+			<div style="display: inline-block">
+				<div style="float: left">
+					<h4><%= list.name %></h4	>
+					<p><%= list.description %></p>
+				</div>	
+				<div style="float: right">
+					<% count = 0 %>
+					<% list.movies.each do |movie| %>	
+						<div style="display: inline-block">
+							<%= render movie %>
+							<% count = count + 1 %>
+							<%  if count > 5 %>
+								<div>More...</div>
+								<% break %>
+							<% end %>				
+						</div>
+					<% end %>
+				</div>			
+			</div>
+		<% end %>
+	</div>
+<%= paginate @lists %>
+<% end %>
+

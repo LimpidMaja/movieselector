@@ -1,0 +1,53 @@
+<h1>New event</h1>
+
+<%= simple_form_for(@event) do |f| %>
+  <%= f.error_notification %>
+
+  <div class="form-inputs">
+    <%= f.input :name %>
+    <%= f.input :description %>
+    <%= f.input :event_date %>
+    <%= f.input :event_time %>
+    <%= f.input :place %>
+    <%= f.input :time_limit %>
+    <%= f.input :minimum_voting_percent %>
+    <%= f.input :users_can_add_movies %>
+    <%= f.input :num_add_movies_by_user %>
+    <%= f.input :num_votes_per_user %>
+    <%= f.input :tie_knockout %>
+    <%= f.input :knockout_time_limit %>
+    <%= f.input :wait_time_limit %>
+  </div>
+
+Invite Friends:
+	<div class="input-append">
+		<%= text_field_tag :users, params[:query], class: "span2",id: "tags",  placeholder: "Search" %>
+	</div>
+<script>
+	$("#query").typeahead({
+		name:"events",remote:"/events/autocomplete_friends?query=%QUERY"
+	});
+	$('#tags').tagsInput({
+		 'autocomplete_url': "/events/autocomplete_friends"
+	});
+</script>
+
+Add Movies:
+	<div class="input-append">
+		<%= text_field_tag :movies, params[:query], class: "span2",id: "tags_m",  placeholder: "Search" %>
+	</div>
+<script>
+	
+	$('#tags_m').tagsInput({
+		 'autocomplete_url': "/events/autocomplete_movies_events",
+		 'placeholderColor' : '#ffffff',
+   		 'interactive':true
+	});
+</script>
+
+  <div class="form-actions">
+    <%= f.button :submit %>
+  </div>
+<% end %>
+
+<%= link_to 'Back', events_path %>

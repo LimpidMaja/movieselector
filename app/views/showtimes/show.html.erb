@@ -1,0 +1,54 @@
+<p id="notice"><%= notice %></p>
+
+<p>
+  <strong>Movie:</strong>
+  <%= @showtime.movie_id %>
+</p>
+
+<p>
+  <strong>Title:</strong>
+  <%= @showtime.title %>
+</p>
+
+<p>
+  <strong>Original title:</strong>
+  <%= @showtime.original_title %>
+</p>
+
+<p>
+  <strong>Cinema:</strong>
+  <%= @showtime.cinema %>
+</p>
+
+<p>
+  <strong>Date:</strong>
+  <%= @showtime.datetime %>
+</p>
+
+<p>
+  <strong>Is 3d:</strong>
+  <%= @showtime.is_3d %>
+</p>
+
+<p>
+  <strong>Is synchronized:</strong>
+  <%= @showtime.is_synchronized %>
+</p>
+
+<p>
+  <strong>City:</strong>
+  <%= @showtime.city %>
+</p>
+
+<p>
+  <strong>Country:</strong>
+  <%= @showtime.country %>
+</p>
+
+<p>
+  <strong>State:</strong>
+  <%= @showtime.state %>
+</p>
+
+<%= link_to 'Edit', edit_showtime_path(@showtime) %> |
+<%= link_to 'Back', showtimes_path %>

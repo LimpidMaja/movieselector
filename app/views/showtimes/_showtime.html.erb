@@ -1,0 +1,78 @@
+<%= div_for(movie) do %>
+  <div style="display: inline-block">
+  	<div style="float: left;">
+	  <div style="display: inline-block">
+	  	<div style="float: left;">
+		  <% if movie.watched %>
+		  	<%= image_tag("watched.png", :border => 0, alt: '', id: 'watched_img_above_' + movie.id.to_s) %>
+		   <% else %>	
+		  	<%= image_tag("", :border => 0, alt: '', id: 'watched_img_above_' + movie.id.to_s) %>	
+		  <% end %>	
+		</div>	
+		<div style="float: right;">
+		  <% if movie.collected %>
+			<%= image_tag("collected.png", :border => 0, alt: '', id: 'collected_img_above_' + movie.id.to_s) %>				
+		  <% else %>	
+		  	<%= image_tag("", :border => 0, alt: '', id: 'collected_img_above_' + movie.id.to_s) %>	
+		  <% end %>	
+		</div>
+		<div style="float: left;">
+		  <% if movie.watchlist %>
+		  	<%= image_tag("watchlist.png", :border => 0, alt: '', id: 'watchlist_img_above_' + movie.id.to_s) %>
+		   <% else %>	
+		  	<%= image_tag("", :border => 0, alt: '', id: 'watchlist_img_above_' + movie.id.to_s) %>	
+		  <% end %>	
+		</div>
+	  </div><p/>
+	  <% unless movie['poster'] == nil || movie['poster'] == "N/A" %>
+	  	<% if movie.poster.match(/^http:\/\/image.tmdb.org\/t\/p\/original\//) %>
+	  		<img src="<%= movie.poster.gsub(/original/, 'w300') %>" alt="<%= movie['title'] %>" class="img-thumbnail" style="width: 200px; height: 291px; alignment-baseline: baseline" >
+	  	<% else %>
+	  		<img src="<%= movie['poster'] %>" alt="<%= movie['title'] %>" class="img-thumbnail" style="width: 200px; height: 291px; alignment-baseline: baseline" >
+	  	<% end %>
+	  <% end %>
+	  <div style="width: 200px; height: 100px;">
+	  	<%= movie['title'] %> (<%= movie['year'] %>) : <%= movie['imdb_rating'] %></p>
+	  	<% if movie.id %>
+	  	<div style="display: inline-block">
+	  		<div style="float: left;">	
+				<% if movie.watched %>
+					<%= link_to image_tag("watched_remove.png", :border => 0, id: 'watched_img_' + movie.id.to_s), add_movie_to_watched_movie_path(movie, :movie => movie.id, :format => :json), remote: true, method: 'post', class: 'update_watched' %>				
+				<% else %>
+					<%= link_to image_tag("watched_add.png", :border => 0, id: 'watched_img_' + movie.id.to_s), add_movie_to_watched_movie_path(movie, :movie => movie.id, :format => :json), remote: true, method: 'post', class: 'update_watched' %>			
+				<% end %>
+			</div>
+			<div style="float: left;">
+				<% if movie.collected %>
+					<%= link_to image_tag("collected_remove.png", :border => 0, id: 'collected_img_' + movie.id.to_s), add_movie_to_collection_movie_path(movie, :movie => movie.id, :format => :json), remote: true, method: 'post', class: 'update_collected' %>				
+				<% else %>
+					<%= link_to image_tag("collected_add.png", :border => 0, id: 'collected_img_' + movie.id.to_s), add_movie_to_collection_movie_path(movie, :movie => movie.id, :format => :json), remote: true, method: 'post', class: 'update_collected' %>		
+				<% end %>
+			</div>
+			<div style="float: right;">
+				<% if movie.watchlist %>
+					<%= link_to image_tag("watchlist_remove.png", :border => 0, id: 'watchlist_img_' + movie.id.to_s), add_movie_to_watchlist_movie_path(movie, :movie => movie.id, :format => :json), remote: true, method: 'post', class: 'update_watchlist' %>				
+				<% else %>
+					<%= link_to image_tag("watchlist_add.png", :border => 0, id: 'watchlist_img_' + movie.id.to_s), add_movie_to_watchlist_movie_path(movie, :movie => movie.id, :format => :json), remote: true, method: 'post', class: 'update_watchlist' %>		
+				<% end %>
+			</div>
+			<div style="float: right;">	
+				<%= link_to image_tag("list_add.png", :border => 0, id: 'watchlist_img_' + movie.id.to_s), add_movie_to_watchlist_movie_path(movie, :movie => movie.id, :format => :json), remote: true, method: 'post', id: 'list' %>
+			</div>		
+	  	</div>
+	  	<% end %>
+	  </div>
+    </div>
+    <div style="float: right;">
+	  <% showtime.each do |showtime| %>
+	    <p>
+	      <%= showtime.cinema %>: <%= showtime.datetime.strftime('%H:%M') %>
+	      <% if showtime.is_3d %> 3D 
+	      <% end %>
+	      <% if showtime.is_synchronized %> Synchronized 
+	      <% end %>    
+	    </p>
+	  <% end %>
+    </div>
+  </div>
+<% end %>

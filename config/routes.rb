@@ -1,5 +1,17 @@
 Movieselector::Application.routes.draw do
 
+  get "/events/autocomplete_friends", :to => "events#autocomplete_friends", :as => :autocomplete_friends
+  get "/events/autocomplete_movies_events", :to => "events#autocomplete_movies_events", :as => :autocomplete_movies_events
+  resources :events 
+  
+  resources :friends do
+    member do
+      get 'find', :as => :invite 
+    end
+  end
+  
+  resources :showtimes
+
   resources :lists do
     get 'page/:page', :action => :index, :on => :collection
   end
@@ -63,6 +75,10 @@ Movieselector::Application.routes.draw do
   get '/auth/failure' => 'sessions#failure'
 
   resources :users, :only => [:index, :show, :edit, :update ] do
+    member do
+      post 'follow', :as => :follow 
+      post 'confirm_friend', :as => :confirm_friend 
+    end
     get 'library', :as => :library 
     get 'watchlist', :as => :watchlist
     resources :movies do
@@ -81,9 +97,13 @@ Movieselector::Application.routes.draw do
   end
   get "/:user_id", :to => "users#show", :as => :friendly_user
   get "/:user_id/movies", :to => "movies#index", :as => :friendly_user_movie
-  get "/:user_id/lists", :to => "lists#index", :as => :friendly_user_list
+  get "/:user_id/friends", :to => "users#friends", :as => :friendly_user_friends
+  get "/:user_id/friends/find", :to => "friends#find", :as => :friendly_user_friends_find
+  get "/:user_id/lists", :to => "users#lists", :as => :friendly_user_list
+  get "/:user_id/lists/:list_id", :to => "users#list", :as => :friendly_user_list_show
   get "/:user_id/settings", :to => "settings#index", :as => :friendly_user_settings
   get "/:user_id/library", :to => "users#library", :as => :friendly_user_movie_library
+  get "/:user_id/watched", :to => "users#watched", :as => :friendly_user_movie_watched
   get "/:user_id/watchlist", :to => "users#watchlist", :as => :friendly_user_movie_watchlist
   
   mount Searchjoy::Engine, at: "admin/searchjoy"

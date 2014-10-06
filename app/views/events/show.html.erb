@@ -1,0 +1,111 @@
+<p id="notice"><%= notice %></p>
+
+<p>
+  <strong>Name:</strong>
+  <%= @event.name %>
+</p>
+
+<p>
+  <strong>Description:</strong>
+  <%= @event.description %>
+</p>
+
+<p>
+  <strong>Event date:</strong>
+  <%= @event.event_date %>
+</p>
+
+<p>
+  <strong>Event time:</strong>
+  <%= @event.event_time %>
+</p>
+
+<p>
+  <strong>Place:</strong>
+  <%= @event.place %>
+</p>
+
+<p>
+  <strong>Time limit:</strong>
+  <%= @event.time_limit %>
+</p>
+
+<p>
+  <strong>Minumum voting percent:</strong>
+  <%= @event.minimum_voting_percent %>
+</p>
+
+<% if @voting_ended && @winner %>
+	<div style="text-align:center">
+		<% if @winner.count > 1 %>
+			<h2>It a Tie!</h2>	
+		<% else %>
+			<h2>The Winner is!</h2>	
+		<% end %>
+	</div>
+	<br>
+	
+	<% count = 0 %>
+	<div style="text-align:center">
+		<% @winner.each do |movie| %>
+			<div style="display: inline-block">
+				<%= render movie %>
+				<div>
+					<% if movie.voting_score %>
+						<%= movie.voting_score %>
+					<% end %>					
+				</div>
+			</div>
+			
+			<% count += 1 %>
+			<% if count > 5 %>
+				<br/>
+				<% count = 0 %>
+			<% end %>
+		<% end %>
+	</div>
+	
+	<br>
+	<div style="text-align:center">
+		<h2>Results:</h2>
+	</div>
+	<br>
+<% end %>
+
+
+<% if @movies %>
+	<% count = 0 %>
+	<div style="text-align:center">
+		<% @movies.each do |movie| %>
+			<div style="display: inline-block">
+				<%= render movie %>
+				<div>
+					<% if movie.voting_score %>
+						<%= movie.voting_score %>
+					<% end %>
+					
+					<% if @voting_ended == false %>
+						<%= simple_form_for(@event) do |f| %>
+						  <%= f.error_notification %>						
+							<%= text_field_tag :vote, params[:rating], class: "span2",  placeholder: "5" %>
+	    					<%= f.hidden_field :name %>
+							<%= hidden_field_tag :movie_id, movie.id %>
+							<%= hidden_field_tag :user_voted_id, current_user.id %>
+						  <div class="form-actions">
+						    <%= f.button :submit, value: "Vote!" %>
+						  </div>
+						<% end %>
+					<% end %>
+				</div>
+			</div>
+			
+			<% count += 1 %>
+			<% if count > 5 %>
+				<br/>
+				<% count = 0 %>
+			<% end %>
+		<% end %>
+	</div>
+<% end %>
+
+<%= link_to 'Back', events_path %>

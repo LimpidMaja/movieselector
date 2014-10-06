@@ -8,6 +8,13 @@ class User < ActiveRecord::Base
   has_many :movies, through: :user_movies
   validates_presence_of :name
   has_many :lists
+  has_many :friends
+  has_many :event_users
+  has_many :events, through: :event_users
+  
+  attr_accessor :picture
+  attr_accessor :watched
+  attr_accessor :collected
  
   scope :username_starts_with, ->(regex_str) { where(" username LIKE ? OR username LIKE ?", regex_str, regex_str + "_%") }
   

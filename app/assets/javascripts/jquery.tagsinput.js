@@ -73,7 +73,11 @@
     input.css('width', minWidth);
   };
   
-	$.fn.addTag = function(value,options) {
+	$.fn.addTag = function(value,options,movie_id) {
+		if (!movie_id) {
+			return false;
+		}
+		
 			options = jQuery.extend({focus:false,callback:true},options);
 			this.each(function() { 
 				var id = $(this).attr('id');
@@ -97,7 +101,7 @@
 				
 				if (value !='' && skipTag != true) { 
                     $('<span>').addClass('tag').append(
-                        $('<span>').text(value).append('&nbsp;&nbsp;'),
+                        $('<span>').addClass( movie_id + "").text(value).append('&nbsp;&nbsp;'),
                         $('<a>', {
                             href  : '#',
                             title : 'Removing tag',
@@ -107,7 +111,7 @@
                         })
                     ).insertBefore('#' + id + '_addTag');
 
-					tagslist.push(value);
+					tagslist.push(movie_id);
 				
 					$('#'+id+'_tag').val('');
 					if (options.focus) {
@@ -267,7 +271,11 @@
 					} else if (jQuery.ui.autocomplete !== undefined) {
 						$(data.fake_input).autocomplete(autocomplete_options);
 						$(data.fake_input).bind('autocompleteselect',data,function(event,ui) {
-							$(event.data.real_input).addTag(ui.item.value,{focus:true,unique:(settings.unique)});
+							if (ui.item.title) {
+								$(event.data.real_input).addTag(ui.item.title,{focus:true,unique:(settings.unique)},ui.item.id);
+							} else {
+								$(event.data.real_input).addTag(ui.item.value,{focus:true,unique:(settings.unique)},ui.item.id);								
+							}
 							return false;
 						});
 					}

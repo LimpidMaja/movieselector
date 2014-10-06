@@ -1,0 +1,28 @@
+<div style="display: inline-block">
+	<div style="float: left">
+		<%= image_tag @user.picture %>
+	</div>
+	<div style="float: right">
+		<h3><%= @user.name %></h3> 
+		<%= link_to 'Follow', follow_user_path(@user, :format => :json), remote: true, method: 'post' if @follow %>
+		<br/>
+		<br/>
+		<br/>
+		<div style="display: inline-block">
+			<%= image_tag("watched.png", :border => 0, :css => "float:left") %> <h3 style="float: right" ><%= @user.watched %></h3>
+		</div>
+		<div style="display: inline-block">
+			<%= image_tag("collected.png", :border => 0, :css => "float:left") %> <h3 style="float: right"><%= @user.collected %></h3>
+		</div>
+	</div>
+</div>
+<div style="background: black; height: 25px; color: white">
+	<%= link_to 'Activity', friendly_user_path(@user) %>
+	<%= link_to 'Watched', friendly_user_movie_watched_path(@user) %>
+	<%= link_to 'Library', friendly_user_movie_library_path(@user) %>
+	<%= link_to 'Lists', friendly_user_list_path(@user) %>
+	<%= link_to 'Watchlist', friendly_user_movie_watchlist_path(@user) %>
+	<%= link_to 'Friends', friendly_user_friends_path(@user) %>
+	<%= link_to 'Settings', friendly_user_settings_path(@user) if current_user.id == @user.id %>
+</div>
+

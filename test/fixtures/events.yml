@@ -1,0 +1,19 @@
+# Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  name: MyString
+  description: MyText
+  event_date: 2014-10-06
+  event_time: 2014-10-06 12:34:40
+  place: MyString
+  time_limit: 
+  minumum_voting_percent: 
+
+two:
+  name: MyString
+  description: MyText
+  event_date: 2014-10-06
+  event_time: 2014-10-06 12:34:40
+  place: MyString
+  time_limit: 
+  minumum_voting_percent: 

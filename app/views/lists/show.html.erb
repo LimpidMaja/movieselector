@@ -1,43 +1,15 @@
+
 <p id="notice"><%= notice %></p>
-
+<%  if @user %>
+	<%= render "users/header" %>
+<% end %>		
 <p>
-  <strong>Name:</strong>
-  <%= @list.name %>
+ 	<h3><%= @list.name %></h3>
 </p>
-
-<p>
-  <strong>Description:</strong>
-  <%= @list.description %>
-</p>
-
-<p>
-  <strong>Type:</strong>
-  <%= @list.list_type %>
-</p>
-
-<p>
-  <strong>Privacy:</strong>
-  <%= @list.privacy %>
-</p>
-
-<p>
-  <strong>Allow edit:</strong>
-  <%= @list.allow_edit %>
-</p>
-
+	<h5><%= @list.description %></h5>
 <p>
   <strong>Rating:</strong>
   <%= @list.rating %>
-</p>
-
-<p>
-  <strong>Votes count:</strong>
-  <%= @list.votes_count %>
-</p>
-
-<p>
-  <strong>User:</strong>
-  <%= @list.user_id %>
 </p>
 
 <% if @movies %>

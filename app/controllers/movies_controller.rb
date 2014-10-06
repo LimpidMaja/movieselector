@@ -7,18 +7,38 @@ class MoviesController < ApplicationController
   # GET /movies
   # GET /movies.json
   def index
-    if params[:user_id]
-      authenticate_user!
-      correct_user_by_user_id?
-      @movies = User.find_by_username(params[:user_id]).movies.page(params[:page]).per(48) 
-    else
+    if params[:user_id].present?
+      puts "PRESENT!"
+      @user = User.find_by_username(params[:user_id])
+      if params[:query].present? && !params[:query].blank?
+        array = params[:query].split(/[,]/); 
+        @movies = Movie.search_movie(array, @user, current_user, params[:page], 48, true, nil, nil, true)
+      else 
+        @movies = Movie.search_movie(nil, @user, current_user, params[:page], 48, true, nil, nil, true)
+      end
+    else 
+      @user = current_user
+      print "\nCURRETNT CUSER: "+ @user.to_yaml 
+     
+      if params[:query].present? && !params[:query].blank?
+        array = params[:query].split(/[,]/); 
+        @movies = Movie.search_movie(array, @user, current_user, params[:page], 48, false, false, false, false)
+      else 
+        @movies = Movie.search_movie(nil, @user, current_user, params[:page], 48, false, false, false, false)
+      end
+    end
+    #if params[:user_id]
+    #  authenticate_user!
+    #  correct_user_by_user_id?
+    #  @movies = User.find_by_username(params[:user_id]).movies.page(params[:page]).per(48) 
+   # else
      # @movies = Movie.search "*", where: {imdb_num_votes: {gt: 30000}}, order: {imdb_rating: :desc, imdb_num_votes: :desc}, limit: 20, offset: 0
 
-      if params[:query].present?
-        @movies = Movie.search(params[:query], suggest: true, page: params[:page], per_page: 50)
-        @suggestion = @movies.suggestions.first
-      else
-    #    trakt = Trakt.new
+   #   if params[:query].present?
+   #     @movies = Movie.search(params[:query], suggest: true, page: params[:page], per_page: 50)
+   #     @suggestion = @movies.suggestions.first
+   #   else
+   # #    trakt = Trakt.new
     #    trakt.apikey = Rails.application.secrets.trakt_API
         
         #trakt_result = trakt.movie.trending
@@ -32,11 +52,11 @@ class MoviesController < ApplicationController
        #   @movies =  Kaminari.paginate_array(@movies).page(params[:page]).per(50)         
        # end
         #@movies = Movie.search "*", where: {imdb_num_votes: {gt: 30000}}, order: {imdb_rating: :desc, imdb_num_votes: :desc}, page: params[:page], per_page: 50
-        @movies = Movie.limit(1).page(params[:page]).per(50)      
+      #  @movies = Movie.limit(1).page(params[:page]).per(50)      
         #Movie.add_movie(19913, nil, nil)
         
-      end
-    end
+     # end
+    #end
     
     #263698
     # tmdb = Tmdb::Movie.detail(149870)
@@ -65,7 +85,7 @@ class MoviesController < ApplicationController
   def add_movie_to_watched
     @user = current_user
     movie = Movie.find(params[:movie])
-    user_movie = Movie.user_movie_watched(@user, movie.id)  
+    user_movie = Movie.toggle_user_movie_watched(@user, movie.id)  
     if user_movie.nil?
       json_result = {:movie_id => movie.id}
       render json: json_result.to_json

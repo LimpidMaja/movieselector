@@ -1,0 +1,47 @@
+<h1>Movie Night Events</h1>
+
+<br>
+
+<%= link_to 'Invite Friends to a Movie Night!', new_event_path %>
+
+<br>
+<h2>Open Events</h2>
+    <% @events.each do |event| %>
+      	<strong><%= event.name %><p></strong>
+        <%= event.event_date %>
+        <%= event.event_time.hour %>:<%= event.event_time.min %>
+        <%= link_to 'Show', event %>
+        <% if current_user.id == event.user_id %>
+   			<%= link_to 'Edit', edit_event_path(event) %>
+        	<%= link_to 'Destroy', event, method: :delete, data: { confirm: 'Are you sure?' } %>
+        <% end %>	
+       <br>
+    <% end %>
+    
+<br>
+<h2>My Events</h2>
+	<% @my_events.each do |event| %>
+      	<strong><%= event.name %><p></strong>
+        <%= event.event_date %>
+        <%= event.event_time.hour %>:<%= event.event_time.min %>
+        <%= link_to 'Show', event %>
+        <% if current_user.id == event.user_id %>
+   			<%= link_to 'Edit', edit_event_path(event) %>
+        	<%= link_to 'Destroy', event, method: :delete, data: { confirm: 'Are you sure?' } %>
+        <% end %>	
+       <br>
+    <% end %>
+
+<br>
+<h2>Past Events</h2>
+	<% @past_events.each do |event| %>
+      	<strong><%= event.name %><p></strong>
+        <%= event.event_date %>
+        <%= event.event_time.hour %>:<%= event.event_time.min %>
+        <%= link_to 'Show', event %>
+        <% if current_user.id == event.user_id %>
+   			<%= link_to 'Edit', edit_event_path(event) %>
+        	<%= link_to 'Destroy', event, method: :delete, data: { confirm: 'Are you sure?' } %>
+        <% end %>	
+       <br>
+    <% end %>

@@ -1,43 +1,14 @@
-<h3>User</h3>
-<p>User: <%= @user.name %></p>
-<p>Email: <%= @user.email if @user.email %></p>
-
-<%= form_tag({}, :method => "get", class: "navbar-form", id: "search-form") do %>
-<div class="input-append">
-	<%= text_field_tag :query, params[:query], class: "span2",id: "tags",  placeholder: "Search" %>
-	Include Watched: <%= check_box_tag 'watched]', 1, params[:watched]%>
-	<%= submit_tag "Search", :name => nil %>
-	<% if @suggestion %>
-	Did you mean: <%= link_to @suggestion, root_path(:query => @suggestion) %>?
-	<% end %>
-</div>
-<% end %>
-<script>
-	$("#query").typeahead({
-		name:"movies",remote:"/autocomplete?query=%QUERY"
-	});
-	$('#tags').tagsInput({
-		 'autocomplete_url': "http://localhost:3000/autocomplete"
-	});
-</script>
-
+<%= render "header" %>
+<br/>
+<h3>RECENT ACTIVITY:</h3>
 <% if @movies %>
-	<% count = 0 %>
 	<div style="text-align:center">
 		<% @movies.each do |movie| %>
 			<div style="display: inline-block">
 				<%= render movie %>
-			</div>
-			
-			<% count += 1 %>
-			<% if count > 5 %>
-				<br/>
-				<% count = 0 %>
-			<% end %>
+			</div>			
 		<% end %>
 	</div>
 <% end %>
-<%= paginate @movies %>
 
-<%= link_to 'Edit account', edit_user_path(@user) %>
 

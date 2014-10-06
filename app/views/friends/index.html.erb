@@ -1,0 +1,50 @@
+<%  if @user %>
+	<%= render "users/header" %>
+
+	<%  if @user == current_user %>
+		Friend Requests:
+		<% if @friend_requests %>
+			<table>  
+			  <tbody>
+			    <% @friend_requests.each do |friend| %>
+			      <tr>
+			        <td><img src=<%= friend.picture %>></td>
+			        <td><%= friend.name %></td>
+			        <td><%= link_to 'Confirm?', confirm_friend_user_path(friend.username, :format => :json), remote: true, method: 'post' %></td>   
+			      </tr>
+			    <% end %>
+			  </tbody>
+			</table>
+		<% end %>
+		<br/>
+		<%= link_to 'Find Friends', friendly_user_friends_find_path %>
+		<br>
+	<% end %>
+<% end %>
+Friends
+<table>  
+  <tbody>
+    <% @friends.each do |friend| %>
+      <% if friend.friend_confirm == true %>
+	      <tr>
+	        <td><img src=<%= friend.picture %>></td>
+	        <td><%= friend.name %></td>
+	        <td>Remove</td>
+	      </tr>	  
+      <% elsif friend.friend_user_id.nil? && !friend.name.nil? %>
+      	<tr>
+	        <td><img src=<%= friend.picture %>></td>
+	        <td><%= friend.name %></td>     
+	       	<td>Invite</td>
+	    </tr>
+	  <% elsif !friend.friend_user_id.nil? %>
+      	<tr>
+	        <td><img src=<%= friend.picture %>></td>
+	        <td><%= friend.name %></td>
+	        <td>Add</td>       
+	       	
+	    </tr>
+      <% end %>
+    <% end %>
+  </tbody>
+</table>

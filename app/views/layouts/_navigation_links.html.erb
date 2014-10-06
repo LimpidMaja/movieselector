@@ -1,9 +1,17 @@
 <%# add navigation links to this file %>
 <% if user_signed_in? %>
-  <li><%= link_to 'Users', users_path %></li>
+	<li><%= link_to 'Events', events_path %></li>
 <% end %>
+<li><%= link_to 'Movies', movies_path %></li>
+<li><%= link_to 'Lists', lists_path %></li>
+<li><%= link_to 'Showtimes', showtimes_path %></li>
+
 <% if user_signed_in? %>
-  <li><%= link_to 'Logout', signout_path %></li>
-<% else %>
+  <li><%= link_to @user = current_user.name, friendly_user_path(current_user) %></li>
+<% end %>
+
+
+
+<% if !user_signed_in? %>
   <li><%= link_to 'Login', signin_path %></li>
 <% end %>
