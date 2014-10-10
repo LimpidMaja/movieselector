@@ -7,13 +7,13 @@ class ChangeEvents < ActiveRecord::Migration
     connection.execute(%q{
       alter table events
       alter column rating_system
-      type integer using cast(string as integer)
+      type integer using cast(rating_system as integer)
     })
     
     connection.execute(%q{
       alter table events
       alter column voting_range
-      type integer using cast(string as integer)
+      type integer using cast(rating_system as integer)
     })
       
   end
