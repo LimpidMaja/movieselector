@@ -57,21 +57,21 @@ class Api::V1::SessionsController < ApplicationController
 
               if @user.access_key.nil?
                 p "NEW ACCESS KEY"
-                access_key = AccessKey.new
-                access_key.user_id = @user.id
-                access_key.access_token_expires = 2.month.from_now.to_i
-                access_key.save
+                @access_key = AccessKey.new
+                @access_key.user_id = @user.id
+                @access_key.access_token_expires = 2.month.from_now.to_i
+                @access_key.save
                 p "ACCESS KEY" + access_key.to_yaml
               elsif @user.access_key.access_token_expires.to_i < Time.now.to_i 
                 p "ACCESS KEY EXPIRED"
                 @user.access_key.destroy
-                access_key = AccessKey.new
-                access_key.user_id = @user.id
-                access_key.access_token_expires = 2.month.from_now.to_i
-                access_key.save
+                @access_key = AccessKey.new
+                @access_key.user_id = @user.id
+                @access_key.access_token_expires = 2.month.from_now.to_i
+                @access_key.save
               end
               
-              render :json => { :info => "Logged in", :access_token => @user.access_key.access_token }, :status => 200
+              render :json => { :info => "Logged in", :access_token => @access_key.access_token }, :status => 200
             else 
               print "NOT VALID"
               render :json => { :info => "Error" }, :status => 403
