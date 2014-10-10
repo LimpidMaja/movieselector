@@ -79,9 +79,9 @@ class Api::V1::SessionsController < ApplicationController
       rescue Koala::Facebook::AuthenticationError
         print "ACCESS TOKEN NOT VALID"
         render :json => { :info => "Error" }, :status => 403
-      rescue Exception
-        print "UNKNOWN ERROR"
-        render :json => { :info => "Error" }, :status => 403
+      #rescue Exception
+       # print "UNKNOWN ERROR"
+       # render :json => { :info => "Error" }, :status => 403
       end
     end
    
