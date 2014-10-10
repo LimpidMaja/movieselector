@@ -36,9 +36,11 @@ class Api::V1::SessionsController < ApplicationController
                 if @user
                   print "NEW PROVIDER USER"
                   @user.add_provider(auth)
+                  @authorization = Authorization.find_by_provider_and_uid(params[:provider], params[:uid])
                 else
                   print "NEW USER"
                   @user = User.create_with_omniauth(auth)
+                  @authorization = Authorization.find_by_provider_and_uid(params[:provider], params[:uid])
                 end   
               end
         
