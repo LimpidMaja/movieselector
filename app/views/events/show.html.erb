@@ -35,7 +35,67 @@
   <%= @event.minimum_voting_percent %>
 </p>
 
-<% if @voting_ended && @winner %>
+<% if @event.finished == false && @knockout == true && @knockout_match %>
+	<div style="text-align:center">
+		<h2>It a Tie!</h2>	
+		<br>
+		<% if @matches_count == 1 %>
+			<h3>Knockout - Final</h3>
+		<% elsif @matches_count == 2 %>
+			<h3>Knockout - Semi-Finals</h3>
+		<% elsif @matches_count == 4 %>
+			<h3>Knockout - Quarter-Finals</h3>
+		<% elsif @matches_count == 8 %>
+			<h3>Knockout - Eighth-Finals</h3>
+		<% else %>
+			<h3>Knockout - <%= @matches_count %>th-Finals</h3>	
+		<% end %>
+	</div>
+	
+	<div style="text-align:center">
+		<div style="display: inline-block">
+			<%= render @knockout_match.first %>	
+			<% if !@voted %>
+				<%= simple_form_for(@event) do |f| %>
+				  <%= f.error_notification %>						
+					<%= f.hidden_field :name %>
+					<%= hidden_field_tag :knockout_id, @knockout_id %>
+					<%= hidden_field_tag :movie_id, @knockout_match.first.id %>
+					<%= hidden_field_tag :user_voted_id, current_user.id %>
+				  <div class="form-actions">
+				    <%= f.button :submit, value: "Vote!" %>
+				  </div>
+				<% end %>
+			<% end %>			
+		</div>
+		<div style="display: inline-block">
+			<h1>VS.</h1>			
+		</div>
+		<div style="display: inline-block">
+			<%= render @knockout_match.last %>		
+			<% if !@voted %>
+				<%= simple_form_for(@event) do |f| %>
+				  <%= f.error_notification %>						
+					<%= f.hidden_field :name %>
+					<%= hidden_field_tag :knockout_id, @knockout_id %>
+					<%= hidden_field_tag :movie_id, @knockout_match.last.id %>
+					<%= hidden_field_tag :user_voted_id, current_user.id %>
+				  <div class="form-actions">
+				    <%= f.button :submit, value: "Vote!" %>
+				  </div>
+				<% end %>
+			<% end %>		
+		</div>
+	</div>
+	<% if @voted %>
+		<div style="text-align:center">
+			<h3>Wait for other users to finish voting!</h3>
+		</div>
+	<% end %>	
+	<br>
+	<br>
+	<br>
+<% elsif @voting_ended && @winner %>
 	<div style="text-align:center">
 		<% if @winner.count > 1 %>
 			<h2>It a Tie!</h2>	

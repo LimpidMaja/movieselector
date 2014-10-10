@@ -11,7 +11,15 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20141006202501) do
+ActiveRecord::Schema.define(version: 20141009161111) do
+
+  create_table "access_keys", force: true do |t|
+    t.string   "access_token"
+    t.datetime "created_at"
+    t.datetime "updated_at"
+    t.integer  "user_id"
+    t.string   "access_token_expires"
+  end
 
   create_table "actors", force: true do |t|
     t.string   "name"
@@ -22,6 +30,16 @@ ActiveRecord::Schema.define(version: 20141006202501) do
   end
 
   add_index "actors", ["slug"], name: "slug", unique: true, using: :btree
+
+  create_table "authorizations", force: true do |t|
+    t.string   "provider"
+    t.string   "uid"
+    t.integer  "user_id"
+    t.datetime "created_at"
+    t.datetime "updated_at"
+    t.string   "access_token"
+    t.string   "access_token_expires"
+  end
 
   create_table "companies", force: true do |t|
     t.string   "name"
@@ -52,12 +70,24 @@ ActiveRecord::Schema.define(version: 20141006202501) do
 
   add_index "directors", ["slug"], name: "slug", unique: true, using: :btree
 
+  create_table "event_knockouts", force: true do |t|
+    t.integer "movie_id_1"
+    t.integer "movie_id_2"
+    t.integer "movie_1_score"
+    t.integer "movie_2_score"
+    t.integer "event_id"
+    t.integer "num_votes"
+    t.integer "round",         default: 1
+    t.boolean "finished",      default: false
+  end
+
   create_table "event_movies", force: true do |t|
     t.integer "movie_id"
     t.integer "event_id"
     t.integer "num_votes"
     t.float   "score"
     t.boolean "out"
+    t.boolean "winner"
   end
 
   create_table "event_users", force: true do |t|
@@ -78,24 +108,17 @@ ActiveRecord::Schema.define(version: 20141006202501) do
     t.boolean  "finished"
     t.boolean  "users_can_add_movies"
     t.integer  "num_add_movies_by_user"
-    t.string   "rating_system"
+    t.integer  "rating_system",          default: 0
     t.integer  "num_votes_per_user"
-    t.string   "voting_range"
+    t.integer  "voting_range",           default: 0
     t.boolean  "tie_knockout"
     t.integer  "knockout_rounds"
     t.integer  "knockout_time_limit"
     t.boolean  "wait_time_limit"
     t.datetime "created_at"
     t.datetime "updated_at"
-  end
-
-  create_table "events_movies_knockout", force: true do |t|
-    t.integer "movie_id_1"
-    t.integer "movie_id_2"
-    t.integer "movie_1_score"
-    t.integer "movie_2_score"
-    t.integer "event_id"
-    t.integer "num_votes"
+    t.integer  "rating_phase",           default: 0
+    t.integer  "knockout_phase",         default: 0
   end
 
   create_table "friends", force: true do |t|
@@ -126,6 +149,12 @@ ActiveRecord::Schema.define(version: 20141006202501) do
 
   add_index "keywords", ["name"], name: "index_keywords_on_name", unique: true, using: :btree
   add_index "keywords", ["slug"], name: "slug", unique: true, using: :btree
+
+  create_table "knockout_users", force: true do |t|
+    t.integer "user_id"
+    t.integer "event_knockout_id"
+    t.integer "num_votes"
+  end
 
   create_table "languages", force: true do |t|
     t.string   "name"
@@ -309,13 +338,9 @@ ActiveRecord::Schema.define(version: 20141006202501) do
   create_table "users", force: true do |t|
     t.string   "name"
     t.string   "email"
-    t.string   "provider"
-    t.string   "uid"
     t.datetime "created_at"
     t.datetime "updated_at"
     t.string   "username"
-    t.string   "access_token_fb"
-    t.string   "access_token_fb_expires"
   end
 
   add_index "users", ["email"], name: "sqlite_autoindex_users_1", unique: true, using: :btree

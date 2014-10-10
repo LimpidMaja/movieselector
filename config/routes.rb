@@ -1,5 +1,17 @@
-Movieselector::Application.routes.draw do
+require 'api_constraints'
 
+Movieselector::Application.routes.draw do
+  namespace :api, defaults: {format: 'json'} do
+    scope module: :v1, constraints: ApiConstraints.new(version: 1, default: true) do
+      resources :users
+      #devise_scope :user do
+       # match '/sessions' => 'sessions#create', :via => :post
+       # match '/sessions' => 'sessions#destroy', :via => :delete
+        
+      post '/auth/:provider/callback' => 'sessions#create'
+    end
+  end
+  
   get "/events/autocomplete_friends", :to => "events#autocomplete_friends", :as => :autocomplete_friends
   get "/events/autocomplete_movies_events", :to => "events#autocomplete_movies_events", :as => :autocomplete_movies_events
   resources :events 

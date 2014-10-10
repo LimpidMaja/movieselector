@@ -48,7 +48,8 @@ class UsersController < ApplicationController
   end
   
   def header(user)
-    @graph = Koala::Facebook::API.new(user.access_token_fb, Rails.application.secrets.omniauth_provider_secret.to_s)
+    auth = Authorization.find_by_user_id_and_provider(user.id, "facebook")        
+    @graph = Koala::Facebook::API.new(auth.access_token, Rails.application.secrets.omniauth_provider_secret.to_s)
     if !@graph.nil?
       begin
         picture = @graph.get_connections("me", "picture?redirect=0&height=200&type=normal&width=200")
@@ -182,12 +183,13 @@ class UsersController < ApplicationController
     
     if current_user == @user 
       @friend_requests = Friend.where(:friend_id => @user.id, :friend_confirm => false)
-      @friend_requests.each do |friend|
+      @friend_requests.each do |friend|        
         friend_user = User.find_by_id(friend.user_id)
+        auth = Authorization.find_by_user_id_and_provider(friend_user.id, "facebook")
         friend.name = friend_user.name
-        friend.facebook_id = friend_user.uid
+        friend.facebook_id = auth.uid
         friend.username = friend_user.username
-        friend.picture = "http://graph.facebook.com/" + friend_user.uid + "/picture"   
+        friend.picture = "http://graph.facebook.com/" + friend.facebook_id + "/picture"   
       end
     end 
     
@@ -195,9 +197,10 @@ class UsersController < ApplicationController
     @friends.each do |friend|
       if friend.friend_confirm == true
         friend_user = User.find_by_id(friend.friend_id)
+        auth = Authorization.find_by_user_id_and_provider(friend_user.id, "facebook")
         friend.name = friend_user.name
-        friend.facebook_id = friend_user.uid
-        friend.picture = "http://graph.facebook.com/" + friend_user.uid + "/picture" 
+        friend.facebook_id = auth.uid
+        friend.picture = "http://graph.facebook.com/" + friend.facebook_id + "/picture" 
         friend.friend_user_id = friend_user.id     
       end
     end
@@ -217,7 +220,8 @@ class UsersController < ApplicationController
           friend = Friend.new
           friend.user_id = @user.id
           friend.friend_id = friend_user.id
-          friend.facebook_id = friend_user.uid
+          auth = Authorization.find_by_user_id_and_provider(friend_user.id, "facebook")
+          friend.facebook_id = auth.uid
           friend.friend_confirm = false
           friend.save
           puts friend.to_yaml
@@ -242,7 +246,8 @@ class UsersController < ApplicationController
           friend_new = Friend.new
           friend_new.user_id = @user.id
           friend_new.friend_id = friend_user.id
-          friend_new.facebook_id = friend_user.uid
+          auth = Authorization.find_by_user_id_and_provider(friend_user.id, "facebook")
+          friend_new.facebook_id = auth.uid
           friend_new.friend_confirm = true
           friend_new.save
           puts friend_new.to_yaml

@@ -65,8 +65,8 @@ class Movie < ActiveRecord::Base
  
   def self.sync_facebook(user)
     logger.info "\n SYNC FACEBOOK"
-    @graph = Koala::Facebook::API.new(user.access_token_fb, Rails.application.secrets.omniauth_provider_secret.to_s)
-    # @graph = Koala::Facebook::API.new("CAADSGOJDPOcBAKp2xq2B1oqpZC0mDbBNSTMoQrfBMe8EuVqiiZCe11n521jYUtmKZAHppj1xywjRrZCaS6V0gfftgeODMMiGsTvIrjpTJfUPpDe1ZASL0ONXxIxfixObjZCRwoHzBbmesT7pltK7niDNCC4KrFfEzEXh00V79jWjhJnZCkemKjog2SwlMIIhYOSTYCV6OGYfgZDZD")
+    auth = Authorization.find_by_user_id_and_provider(user.id, "facebook")        
+    @graph = Koala::Facebook::API.new(auth.access_token, Rails.application.secrets.omniauth_provider_secret.to_s)
             
     if !@graph.nil?
       begin

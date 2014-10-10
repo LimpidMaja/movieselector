@@ -24,7 +24,8 @@ class ShowtimesController < ApplicationController
     else      
       @user = current_user
       if @user
-        @graph = Koala::Facebook::API.new(@user.access_token_fb, Rails.application.secrets.omniauth_provider_secret.to_s)
+        auth = Authorization.find_by_user_id_and_provider(@user.id, "facebook")        
+        @graph = Koala::Facebook::API.new(auth.access_token, Rails.application.secrets.omniauth_provider_secret.to_s)
         profile = @graph.get_object("me")
         if profile && profile.location
           city = profile.location.name.split(',').first.strip 

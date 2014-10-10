@@ -17,9 +17,10 @@ class FriendsController < ApplicationController
     @friend_requests.each do |friend|
       friend_user = User.find_by_id(friend.user_id)
       friend.name = friend_user.name
-      friend.facebook_id = friend_user.uid
+      auth = Authorization.find_by_user_id_and_provider(friend_user.id, "facebook")
+      friend.facebook_id = auth.uid
       friend.username = friend_user.username
-      friend.picture = "http://graph.facebook.com/" + friend_user.uid + "/picture"   
+      friend.picture = "http://graph.facebook.com/" + friend.facebook_id + "/picture"   
     end
     
     @friends = @user.friends
@@ -27,8 +28,9 @@ class FriendsController < ApplicationController
       if friend.friend_confirm == true
         friend_user = User.find_by_id(friend.friend_id)
         friend.name = friend_user.name
-        friend.facebook_id = friend_user.uid
-        friend.picture = "http://graph.facebook.com/" + friend_user.uid + "/picture" 
+        auth = Authorization.find_by_user_id_and_provider(friend_user.id, "facebook")
+        friend.facebook_id = auth.uid
+        friend.picture = "http://graph.facebook.com/" + friend.facebook_id + "/picture" 
         friend.friend_user_id = friend_user.id     
       end
     end
@@ -37,8 +39,8 @@ class FriendsController < ApplicationController
   
   def find
     @user = current_user
-
-    @graph = Koala::Facebook::API.new(@user.access_token_fb, Rails.application.secrets.omniauth_provider_secret.to_s)
+    auth = Authorization.find_by_user_id_and_provider(@user.id, "facebook")        
+    @graph = Koala::Facebook::API.new(auth.access_token, Rails.application.secrets.omniauth_provider_secret.to_s)
     #friends = @graph.get_connections("me", "friends")
     #friend.each do |friend| 
       
@@ -60,8 +62,9 @@ class FriendsController < ApplicationController
                 fb_friend.name = friend.name
                 fb_friend.facebook_id = friend.id
                 fb_friend.picture = "http://graph.facebook.com/" + friend.id + "/picture"
-                friend_user = User.find_by_uid(friend.id)
-                if friend_user
+                auth = Authorization.find_by_uid(friend.id)                
+                if auth
+                  friend_user = auth.user
                   fb_friend.friend_user_id = friend_user.id
                 end
                 @friends << fb_friend             

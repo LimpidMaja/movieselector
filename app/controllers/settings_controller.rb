@@ -26,9 +26,9 @@ class SettingsController < ApplicationController
 #logger.info "\nFAEBOK COOK: " + @facebook_cookies.to_yaml + "\n"
    #  Movie.sync_facebook(@user) 
   # import_from_facebook
-    @graph = Koala::Facebook::API.new(@user.access_token_fb, Rails.application.secrets.omniauth_provider_secret.to_s)
-    friends = @graph.get_connections("me", "friends")
-    logger.info "\n FRIENDS: " + friends.to_yaml
+    #@graph = Koala::Facebook::API.new(session[:fb_access_token], Rails.application.secrets.omniauth_provider_secret.to_s)
+    #friends = @graph.get_connections("me", "friends")
+    #logger.info "\n FRIENDS: " + friends.to_yaml
     render action: :show
   end
 

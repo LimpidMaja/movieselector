@@ -21,7 +21,9 @@ class ApplicationController < ActionController::Base
 
   def current_user
     begin
-      return @current_user ||= User.find_by_username(session[:user_id]) if session[:user_id]      
+      @current_user ||= User.find_by_username(session[:user_id]) if session[:user_id]    
+      @current_user.refresh_facebook_access_token
+      return @current_user
     rescue Exception => e
       nil
     end
