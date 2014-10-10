@@ -69,6 +69,8 @@ class Api::V1::SessionsController < ApplicationController
                 @access_key.user_id = @user.id
                 @access_key.access_token_expires = 2.month.from_now.to_i
                 @access_key.save
+              else
+                @access_key = @user.access_key
               end
               
               render :json => { :info => "Logged in", :access_token => @access_key.access_token }, :status => 200
