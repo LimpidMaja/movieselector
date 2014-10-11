@@ -28,6 +28,7 @@ class SessionsController < ApplicationController
         else
           @user = User.create_with_omniauth(auth)
         end   
+        @authorization = Authorization.find_by_provider_and_uid(auth["provider"], auth["uid"])
         #render :text => "Hi #{user.name}! You've signed up."
       end
     end
