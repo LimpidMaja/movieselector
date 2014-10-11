@@ -47,7 +47,11 @@ class Api::V1::EventsController < ApplicationController
   # GET /events
   # GET /events.json
   def index
-    @user = current_user
+    if params[:token]
+      AccessKey.(access_token: token)
+    end
+    
+    @user = Acces
     @events = []
     @past_events = []
     user_events = current_user.events
