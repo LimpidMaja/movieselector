@@ -66,7 +66,7 @@ class Api::V1::SessionsController < ApplicationController
                 @access_key.user_id = @user.id
                 @access_key.access_token_expires = 2.month.from_now.to_i
                 @access_key.save
-                p "ACCESS KEY" + access_key.to_yaml
+                p "ACCESS KEY" + @access_key.to_yaml
               elsif @user.access_key.access_token_expires.to_i < Time.now.to_i 
                 p "ACCESS KEY EXPIRED"
                 @user.access_key.destroy
