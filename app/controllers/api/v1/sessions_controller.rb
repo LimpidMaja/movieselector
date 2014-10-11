@@ -8,7 +8,7 @@ class Api::V1::SessionsController < ApplicationController
         @graph = Koala::Facebook::API.new(params[:access_token])
         if !@graph.nil?
           user_result = @graph.get_connections("me?fields=id,email,name&access_token=" + params[:access_token], "")
-          print "EMIAL_ "+ user_result.email
+          
           if params[:uid] == user_result.id         
             @oauth = Koala::Facebook::OAuth.new(Rails.application.secrets.omniauth_provider_key.to_s, Rails.application.secrets.omniauth_provider_secret.to_s)
             app_token = @oauth.get_app_access_token          
@@ -22,8 +22,13 @@ class Api::V1::SessionsController < ApplicationController
                 @user = @authorization.user
                 print "ALREADY USER"
                 #render :text => "Welcome back #{@authorization.user.name}! You have already signed up."
-              else
-                @user = User.find_by_email(user_result.email)
+              else   
+                if user_result['email']                  
+                  @user = User.find_by_email(user_result['email'])
+                else
+                  @user = User.find_by_email(params[:email])
+                end
+                                  
                 auth = {}
                 auth['uid'] = params[:uid]
                 auth['provider'] = params[:provider]
