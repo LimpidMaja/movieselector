@@ -69,8 +69,8 @@ class EventsController < ApplicationController
     @user = current_user     
     @users = @event.users
     print "RAINT rating_phase  " +  @event.voting?.to_s
-    p "EVENTS USERS: " + event.users.to_yaml
-    p "MOVIES: " + event.movies.to_yaml
+    p "EVENTS USERS: " + @event.users.to_yaml
+    p "MOVIES: " + @event.movies.to_yaml
     @voting_ended = false
     if @event.finished != true && @event.voting?
       if @event.starting?
