@@ -6,9 +6,7 @@ class SessionsController < ApplicationController
 
   def create
     logger.info "\n CREATE USER!!!!!!\n" 
-    User.delete_all
-    Authorization.delete_all
-    AccessKey.delete_all
+    
     auth = request.env["omniauth.auth"]
     if session[:user_id]
       # Means our user is signed in. Add the authorization to the user
