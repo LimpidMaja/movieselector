@@ -9,9 +9,12 @@ class Api::V1::SessionsController < ApplicationController
         if !@graph.nil?
           user_result = @graph.get_connections("me?fields=id,email,name&access_token=" + params[:access_token], "")
           
-          if params[:uid] == user_result.id         
+          if params[:uid] == user_result.id       
+            p "APP ID: " + Rails.application.secrets.omniauth_provider_key.to_s   
+            p "APP ID: " + Rails.application.secrets.omniauth_provider_secret.to_s   
             @oauth = Koala::Facebook::OAuth.new(Rails.application.secrets.omniauth_provider_key.to_s, Rails.application.secrets.omniauth_provider_secret.to_s)
-            app_token = @oauth.get_app_access_token          
+            app_token = @oauth.get_app_access_token   
+            p " UTGH T: " + @oauth.get_app_access_token.to_s      
             verification_result = @graph.get_connections("debug_token?input_token=" + app_token + "&access_token=" + params[:access_token], "")
             is_valid = verification_result.data.is_valid
             if is_valid == true
