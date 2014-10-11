@@ -37,7 +37,11 @@ class Api::V1::SessionsController < ApplicationController
                 auth['provider'] = params[:provider]
                 info = {}
                 info['name'] = user_result.name
-                info['email'] = user_result.email
+                if user_result['email']  
+                  info['email'] = user_result.email
+                else
+                  info['email'] = params[:email]
+                end
                 auth['info'] = info
                 
                 print "AUTH: " + auth.to_yaml
