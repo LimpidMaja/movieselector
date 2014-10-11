@@ -6,26 +6,27 @@ class SessionsController < ApplicationController
 
   def create
     logger.info "\n CREATE USER!!!!!!\n" 
-    
     User.delete_all
+    Authorization.delete_all
+    AccessKey.delete_all
     auth = request.env["omniauth.auth"]
     if session[:user_id]
       # Means our user is signed in. Add the authorization to the user
-      user = User.find(session[:user_id])
-      user.add_provider(auth)
+      @user = User.find(session[:user_id])
+      @user.add_provider(auth)
       @authorization = Authorization.find_by_provider_and_uid(auth["provider"], auth["uid"])
       #render :text => "You can now login using #{auth_hash["provider"].capitalize} too!"
     else       
       @authorization = Authorization.find_by_provider_and_uid(auth["provider"], auth["uid"])
       if @authorization
-        user = @authorization.user
+        @user = @authorization.user
         #render :text => "Welcome back #{@authorization.user.name}! You have already signed up."
       else
-        user = User.find_by_email(auth["info"]["email"])
-        if user
-          user.add_provider(auth)
+        @user = User.find_by_email(auth["info"]["email"])
+        if @user
+          @user.add_provider(auth)
         else
-          user = User.create_with_omniauth(auth)
+          @user = User.create_with_omniauth(auth)
         end   
         #render :text => "Hi #{user.name}! You've signed up."
       end
@@ -35,7 +36,7 @@ class SessionsController < ApplicationController
     # 2.8 Session Fixation – Countermeasures:
     # http://guides.rubyonrails.org/security.html#session-fixation-countermeasures
     reset_session 
-    session[:user_id] = user.username
+    session[:user_id] = @user.username
        
     if auth["provider"] == "facebook"
       if @authorization.access_token != auth['credentials']['token']
@@ -45,12 +46,12 @@ class SessionsController < ApplicationController
       end
       
       Thread.new do
-        Movie.sync_facebook(user) 
+        Movie.sync_facebook(@user) 
       end
     end
        
-    if user.email.blank?
-      redirect_to edit_user_path(user), :alert => "Please enter your email address."
+    if @user.email.blank?
+      redirect_to edit_user_path(@user), :alert => "Please enter your email address."
     else
       redirect_to root_url, :notice => 'Signed in!'
     end
