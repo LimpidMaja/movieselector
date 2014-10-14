@@ -72,6 +72,7 @@ class Api::V1::SessionsController < ApplicationController
                 @access_key = AccessKey.new
                 @access_key.user_id = @user.id
                 @access_key.access_token_expires = 2.month.from_now.to_i
+                p "GCM REG: ID :" + params[:gcm_reg_id]
                 if params[:gcm_reg_id]
                   @access_key.gcm_reg_id = params[:gcm_reg_id]
                 end 
