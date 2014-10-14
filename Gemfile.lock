@@ -67,6 +67,9 @@ GEM
       multipart-post (>= 1.2, < 3)
     friendly_id (5.0.3)
       activerecord (>= 4.0.0)
+    gcm (0.0.9)
+      httparty
+      json
     google_search (1.2.0)
       json
     groupdate (2.1.0)
@@ -224,6 +227,7 @@ DEPENDENCIES
   clockwork
   coffee-rails (~> 4.0.0)
   friendly_id
+  gcm
   google_search
   hpricot
   hub

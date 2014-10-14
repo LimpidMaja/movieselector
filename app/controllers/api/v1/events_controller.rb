@@ -1,7 +1,8 @@
 class Api::V1::EventsController < ApplicationController
-  before_filter :restrict_access
-  
+  before_filter :restrict_access  
   respond_to :json
+  
+  include ActionController::HttpAuthentication::Token
   
   def autocomplete_friends  
     @user = current_user
@@ -47,23 +48,27 @@ class Api::V1::EventsController < ApplicationController
   # GET /events
   # GET /events.json
   def index
-    if params[:token]
-      AccessKey.(access_token: token)
-    end
-    
-    @user = Acces
-    @events = []
-    @past_events = []
-    user_events = current_user.events
-    user_events.each do |event| 
-      if event.event_date >= Date.today
-        @events << event
-      else
-        @past_events << event 
+    if token_and_options(request)
+      access_key = AccessKey.find_by_access_token(token_and_options(request))
+      @user = User.find_by_id(access_key.user_id)
+      
+      p "@user: " + @user.to_yaml
+      @events = []
+      @past_events = []
+      user_events = @user.events
+      user_events.each do |event| 
+        if event.event_date >= Date.today
+          @events << event
+        else
+          @past_events << event 
+        end
       end
-    end
-    
-    @my_events = Event.where("user_id = ?", @user.id)
+      
+      respond_with :events => @user.events
+      
+    else
+      render :events => { :info => "Error" }, :status => 403
+    end   
   end
 
   # GET /events/1
@@ -514,6 +519,8 @@ class Api::V1::EventsController < ApplicationController
         
     def restrict_access
       authenticate_or_request_with_http_token do |token, options|
+        p "aUTH"
+        @token = token
         AccessKey.exists?(access_token: token)
       end
     end

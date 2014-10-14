@@ -32,6 +32,7 @@ gem 'clockwork'
 gem 'hpricot'
 gem 'nokogiri'
 gem 'google_search'
+gem 'gcm'
 #gem 'trakt_api', "0.0.1"
 #gem 'httparty', "0.11.0"
 gem 'rails_12factor', group: :production

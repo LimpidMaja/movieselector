@@ -6,9 +6,9 @@ class SessionsController < ApplicationController
 
   def create
     logger.info "\n CREATE USER!!!!!!\n" 
-    #User.delete_all
-    #Authorization.delete_all
-    #AccessKey.delete_all
+    User.delete_all
+    Authorization.delete_all
+    AccessKey.delete_all
     p "USERS: " + User.all.to_yaml
     p "AUTH: " + Authorization.all.to_yaml
     auth = request.env["omniauth.auth"]

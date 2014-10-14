@@ -72,6 +72,9 @@ class Api::V1::SessionsController < ApplicationController
                 @access_key = AccessKey.new
                 @access_key.user_id = @user.id
                 @access_key.access_token_expires = 2.month.from_now.to_i
+                if params[:gcm_reg_id]
+                  @access_key.gcm_reg_id = params[:gcm_reg_id]
+                end 
                 @access_key.save
                 p "ACCESS KEY" + @access_key.to_yaml
               elsif @user.access_key.access_token_expires.to_i < Time.now.to_i 
@@ -79,10 +82,18 @@ class Api::V1::SessionsController < ApplicationController
                 @user.access_key.destroy
                 @access_key = AccessKey.new
                 @access_key.user_id = @user.id
+                if params[:gcm_reg_id]
+                  @access_key.gcm_reg_id = params[:gcm_reg_id]
+                end 
                 @access_key.access_token_expires = 2.month.from_now.to_i
                 @access_key.save
               else
                 @access_key = @user.access_key
+                if params[:gcm_reg_id]
+                  p "GCM: " + params[:gcm_reg_id]
+                  @access_key.gcm_reg_id = params[:gcm_reg_id]
+                  @access_key.save
+                end 
               end
               
               render :json => { :info => "Logged in", :access_token => @access_key.access_token }, :status => 200
@@ -95,9 +106,9 @@ class Api::V1::SessionsController < ApplicationController
       rescue Koala::Facebook::AuthenticationError
         print "ACCESS TOKEN NOT VALID"
         render :json => { :info => "Error" }, :status => 403
-      rescue Exception
-        print "UNKNOWN ERROR"
-        render :json => { :info => "Error" }, :status => 403
+      #rescue Exception
+      #  print "UNKNOWN ERROR"
+       # render :json => { :info => "Error" }, :status => 403
       end
     end
    
