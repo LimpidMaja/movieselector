@@ -20,6 +20,9 @@ class User < ActiveRecord::Base
   attr_accessor :picture
   attr_accessor :watched
   attr_accessor :collected
+  attr_accessor :fb_uid
+  attr_accessor :event_accepted
+ 
  
   scope :username_starts_with, ->(regex_str) { where(" username LIKE ? OR username LIKE ?", regex_str, regex_str + "_%") }
   

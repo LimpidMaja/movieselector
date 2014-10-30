@@ -1,8 +1,11 @@
 class ApplicationController < ActionController::Base
   # Prevent CSRF attacks by raising an exception.
   # For APIs, you may want to use :null_session instead.
-  protect_from_forgery with: :exception
+  #protect_from_forgery with: :exception, :except => Proc.new { |c| c.request.format == 'application/vnd.cinevox.v1' }
+  #or :null_session, :if => Proc.new { |c| c.request.format == 'application/vnd.cinevox.v1' }
+  protect_from_forgery with: :exception, :if => Proc.new { |c| !c.request.path.start_with?('/api/') }
 
+  
   helper_method :current_user
   helper_method :user_signed_in?
   helper_method :correct_user?

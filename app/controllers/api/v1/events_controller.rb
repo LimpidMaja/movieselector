@@ -1,71 +1,96 @@
 class Api::V1::EventsController < ApplicationController
   before_filter :restrict_access  
   respond_to :json
-  
+    
+  require 'gcm'  
   include ActionController::HttpAuthentication::Token
-  
-  def autocomplete_friends  
-    @user = current_user
-    #print @user.friends.users.to_yaml
     
-    @hash = []
-    
-    @friends = @user.friends
-    @friends.each do |friend|
-      if friend.friend_confirm == true
-        friend_user = User.find_by_id(friend.friend_id)
-        puts friend_user.name
-        #if friend_user.name =~ /^ma/
-        #if friend_user.name.include?(params[:term]) 
-          friend.name = friend_user.name
-          auth = Authorization.find_by_user_id_and_provider(friend_user.id, "facebook")
-          friend.facebook_id = auth.uid
-          friend.picture = "http://graph.facebook.com/" + friend.facebook_id + "/picture" 
-          friend.friend_user_id = friend_user.id  
-          
-        #puts "ADD " + friend_user.name
-          @hash << {"value" => friend_user.name, "id" => friend_user.id}           
-       # end
-      end
-    end
-    render :json => @hash
-  end
-  
-  def autocomplete_movies_events
-    @user = current_user
-    #print @user.friends.users.to_yaml
-    
-    @hash = []
-    @movies= Movie.select("id, title, year").where("title LIKE ?", "#{params[:term]}%").limit(20)
-    @movies.each do |movie|
-      @hash << { "id" => movie.id, "title" => movie.title, "value" => (movie.title + " (" + movie.year.to_s + ")")}
-    end
-    print @hash.to_yaml
-    render :json => @hash
-  end
-  
-  
   # GET /events
   # GET /events.json
   def index
     if token_and_options(request)
       access_key = AccessKey.find_by_access_token(token_and_options(request))
-      @user = User.find_by_id(access_key.user_id)
-      
+      @user = User.find_by_id(access_key.user_id)     
       p "@user: " + @user.to_yaml
+      
       @events = []
       @past_events = []
-      user_events = @user.events
+      user_events = @user.events.includes([:movies, :users])
       user_events.each do |event| 
         if event.event_date >= Date.today
           @events << event
+                    
+          event_users = []
+          all_confirmed = true
+          all_voted = true
+          votes_count = 0
+          votes_user_count = 0
+          
+          event.users.each do |friend_user| 
+            event_user = nil
+            if event.rating_phase == "wait_users"
+              event_user = EventUser.where("event_id = ? AND user_id = ?", event.id, friend_user.id).limit(1).first              
+              p "EVENT USER:_ " +friend_user.id.to_s + " ACCEPTED:"  +event_user.accept.to_yaml + "\n"
+              if friend_user.id == @user.id && event_user.waiting?
+                p "ME - NOT ACCEPT!"
+                all_confirmed = false
+                event.event_status = "confirm"                
+              elsif event_user.waiting?
+                all_confirmed = false
+              end
+            end
+            
+            if event.rating_phase == "starting"
+              if event_user.nil?
+                event_user = EventUser.where("event_id = ? AND user_id = ?", event.id, friend_user.id).limit(1).first              
+              end    
+              if event_user.accepted? && event_user.num_votes != event.num_votes_per_user
+                if friend_user.id == @user.id 
+                  event.event_status = "vote"                    
+                end              
+                all_voted = false
+              elsif event_user.accepted? && event_user.num_votes == event.num_votes_per_user                
+                votes_user_count = votes_user_count + 1
+                votes_count = votes_count + event_user.num_votes
+              end
+            end
+                    
+            if friend_user.id != @user.id    
+              auth = Authorization.find_by_user_id_and_provider(friend_user.id, "facebook")
+              if event_user.nil?
+                event_user = EventUser.where("event_id = ? AND user_id = ?", event.id, friend_user.id).limit(1).first              
+              end                   
+              friend_json = {id: friend_user.id, :name => friend_user.name, :username => friend_user.username, :fb_uid => auth.uid, :event_accepted => event_user.accept}           
+              event_users << friend_json              
+            end
+          end
+          
+          voting_percent = (votes_user_count * 100) / event.users.count 
+          votes_percent = votes_count * 100 / (event.users.count * event.num_votes_per_user) 
+          print "PERCENT: " + voting_percent.to_s
+          print "VOTES PERCENT: " + votes_percent.to_s
+            
+          #if event.minimum_voting_percent <= voting_percent && event.minimum_voting_percent <= votes_percent
+          if event.finished == true
+            event_movie = EventMovie.where("event_id = ? AND winner = true", event.id).limit(1).first
+            movie = EventMovie.where("event_id = ? AND winner = true", event.id).limit(1).first    
+            event.event_status = "winner" 
+            p "WINNER: " + movie.to_yaml + "\n"      
+            event.winner_movie = event_movie.movie_id
+          elsif (all_confirmed == false && event.event_status != "confirm") || (all_voted == false && event.event_status != "vote")
+            p "WAITING"
+            event.event_status = "waiting_others"   
+          elsif all_voted == true && event.minimum_voting_percent <= voting_percent && event.minimum_voting_percent <= votes_percent
+            event.event_status = "winner"                     
+          end
+                   
+          event.friends = event_users
         else
           @past_events << event 
         end
-      end
-      
-      respond_with :events => @user.events
-      
+      end        
+          
+      respond_with build_events_json(@events)   
     else
       render :events => { :info => "Error" }, :status => 403
     end   
@@ -74,276 +99,8 @@ class Api::V1::EventsController < ApplicationController
   # GET /events/1
   # GET /events/1.json
   def show
-    @movies = @event.movies
-   # print "MO: " + @movies.to_yaml
     
-    @user = current_user     
-    @users = @event.users
-    print "RAINT rating_phase  " +  @event.voting?.to_s
-    @voting_ended = false
-    if @event.finished != true && @event.voting?
-      if @event.starting?
-        event_users = EventUser.where("event_id = ?", @event.id)
-        votes_count = 0
-        votes_user_count = 0
-        event_users.each do |event_user|
-          print "NUM: " + event_user.to_yaml
-          if event_user.num_votes > 0 
-            votes_user_count = votes_user_count + 1
-          end
-          votes_count = votes_count + event_user.num_votes
-        end
-        
-        voting_percent = (votes_user_count * 100) / @users.count 
-        votes_percent = votes_count * 100 / (@users.count * @event.num_votes_per_user) 
-        print "PERCENT: " + voting_percent.to_s
-        print "VOTES PERCENT: " + votes_percent.to_s
-        
-        if @event.minimum_voting_percent <= voting_percent && @event.minimum_voting_percent <= votes_percent
-          print "VOTING ENDED!"
-          @voting_ended = true
-        else
-          print "VOTING ACTIVE"
-        end
-      else
-        @voting_ended = true    
-      end 
-    else
-      @voting_ended = true       
-    end
-      
-    highest_score = 0
-    highest_score_count = 0
-    @winner = []
-    @movies.each do |movie|
-      user_movie = UserMovie.where("user_id = ? AND movie_id = ?", @user.id, movie.id).limit(1).first    
-      if !user_movie.nil? 
-        if user_movie.watched == true
-          movie.watched = true
-        end
-        if user_movie.collection == true
-          movie.collected = true
-        end
-        if user_movie.watchlist == true
-          movie.watchlist = true
-        end
-      end
-      if @event.finished != true
-        event_movie = EventMovie.where("event_id = ? AND movie_id = ?", @event.id, movie.id).limit(1).first    
-        if !event_movie.nil?
-          if event_movie.score != 0
-            movie.voting_score = (event_movie.score / event_movie.num_votes)
-            if @voting_ended == true
-              if movie.voting_score > highest_score
-                highest_score = movie.voting_score
-                highest_score_count = 1
-                @winner = []
-                @winner << movie
-              elsif movie.voting_score == highest_score
-                highest_score_count = highest_score_count + 1
-                @winner << movie
-              end
-            end
-          end
-        end
-      end
-    end  
-       print "VOTING ENDED? " + @voting_ended.to_s
-       
-    if @event.finished == true   
-      event_movie = EventMovie.where("event_id = ? AND winner = true", @event.id).limit(1).first 
-      @winner << Movie.where("id = ? ", event_movie.movie_id).limit(1).first   
-      @voting_ended = true       
-    elsif @voting_ended == true
-      if highest_score_count > 1 || @event.knockout_match? 
-        print "TIE!!"
-        
-        if @event.tie_knockout == true          
-          @knockout = true
-          
-          if !@event.knockout_match?
-            @event.rating_phase = "knockout_match"
-            @event.knockout_phase = 1
-            @event.save
-            
-            if @event.knockout_rounds.nil? || @event.knockout_rounds == 0
-              matches = []
-              knockouts = []
-              while !@winner.empty?            
-                round_x = @winner.sample(2)
-                matches << round_x
-                
-                print "ROUND1: " + round_x.to_yaml
-                knockout = EventKnockout.new
-                knockout.event = @event
-                knockout.movie_id_1 = round_x.first.id
-                if round_x.count > 1
-                  knockout.movie_id_2 = round_x.last.id
-                  knockout.movie_1_score = 0
-                  knockout.movie_2_score = 0
-                  knockout.round = 1
-                  knockout.num_votes = 0
-                  knockout.finished = false
-                else
-                  knockout.movie_id_2 = 0
-                  knockout.movie_1_score = 1
-                  knockout.movie_2_score = 0
-                  knockout.round = 1                  
-                  knockout.num_votes = 1
-                  knockout.finished = true
-                end                
-                knockout.save
-                knockouts << knockout
-                #print "\n\n"
-                @winner = @winner.reject { |h| round_x.include? h }              
-              end
-              @winner = nil
-              print "\n\n"
-              print "MATCHES: " + matches.to_yaml     
-              @knockout_match = matches.first
-              @matches_count = matches.count
-              @knockout_id = knockouts.first.id
-            else            
-            end
-          elsif @event.knockout_match?
-            knockouts =  EventKnockout.where("event_id = ? AND round = ? ", @event.id, @event.knockout_phase).order('id ASC')
-            print "knockouts: " + knockouts.to_yaml 
-            @knockout_match = []
-            knockouts.each do |event_knockout|
-              if event_knockout.finished != true
-                movie_1 = @movies.select { |h| event_knockout.movie_id_1 == h['id'] } 
-                movie_2 = @movies.select { |h| event_knockout.movie_id_2 == h['id'] } 
-                @knockout_match << movie_1.first
-                @knockout_match << movie_2.first
-                @knockout_id = event_knockout.id
-                knockout_user = KnockoutUser.where("event_knockout_id = ? AND user_id = ? ", event_knockout.id, @user.id)
-                if knockout_user.nil? || knockout_user.empty?
-                  @voted = false
-                else
-                  @voted = true
-                end
-                break
-              end
-            end
-            
-            if @knockout_match.empty?
-              if knockouts.count == 1  
-                @winner = []       
-                knockouts.each do |event_knockout|
-                  if event_knockout.movie_1_score > event_knockout.movie_2_score
-                    movie_1 = @movies.select { |h| event_knockout.movie_id_1 == h['id'] } 
-                    print "WON FIRST"
-                    @winner << movie_1.first               
-                  elsif event_knockout.movie_2_score > event_knockout.movie_1_score
-                    movie_2 = @movies.select { |h| event_knockout.movie_id_2 == h['id'] }  
-                    print "WON SECOND"      
-                    @winner << movie_2.first           
-                  else
-                    movie_1 = @movies.select { |h| event_knockout.movie_id_1 == h['id'] } 
-                    movie_2 = @movies.select { |h| event_knockout.movie_id_2 == h['id'] }        
-                    @winner << movie_1.first                
-                    @winner << movie_2.first           
-                    movie = @winner.sample
-                    print "WON RANDOM"
-                    @winner = []
-                    @winner << movie
-                  end
-                end
-                       
-                winner_movie = @winner.first
-                print "WIINEER IS_ " + winner_movie.to_yaml
-                event_movie = EventMovie.where("event_id = ? AND movie_id = ?", @event.id, winner_movie.id).limit(1).first    
-                event_movie.winner = true
-                event_movie.save                
-                @event.finished = true
-                @event.save  
-                @voting_ended = true    
-              else               
-                @event.knockout_phase = @event.knockout_phase + 1
-                @event.save
-              
-                matches = []
-                @winner = []
-                knockouts.each do |event_knockout|
-                  if event_knockout.movie_1_score > event_knockout.movie_2_score
-                    movie_1 = @movies.select { |h| event_knockout.movie_id_1 == h['id'] } 
-                    @winner << movie_1.first               
-                  elsif event_knockout.movie_2_score > event_knockout.movie_1_score
-                    movie_2 = @movies.select { |h| event_knockout.movie_id_2 == h['id'] }        
-                    @winner << movie_2.first           
-                  else
-                    movie_1 = @movies.select { |h| event_knockout.movie_id_1 == h['id'] } 
-                    movie_2 = @movies.select { |h| event_knockout.movie_id_2 == h['id'] } 
-                    temp = []       
-                    temp << movie_1.first                
-                    temp << movie_2.first          
-                    movie = temp.sample
-                    @winner << movie
-                  end
-                end         
-                
-                print "NEXT ROUND WINNERS: " + @winner.to_yaml     
-                
-                knockouts = []
-                while !@winner.empty?            
-                  round_x = @winner.sample(2)
-                  matches << round_x
-                  
-                  print "ROUND1: " + round_x.to_yaml
-                  knockout = EventKnockout.new
-                  knockout.event = @event
-                  knockout.movie_id_1 = round_x.first.id
-                  if round_x.count > 1
-                    knockout.movie_id_2 = round_x.last.id
-                    knockout.movie_1_score = 0
-                    knockout.movie_2_score = 0
-                    knockout.round = @event.knockout_phase
-                    knockout.num_votes = 0
-                    knockout.finished = false
-                  else
-                    knockout.movie_id_2 = 0
-                    knockout.movie_1_score = 1
-                    knockout.movie_2_score = 0
-                    knockout.round = @event.knockout_phase                  
-                    knockout.num_votes = 1
-                    knockout.finished = true
-                  end                
-                  knockout.save
-                  knockouts << knockout
-                  #print "\n\n"
-                  @winner = @winner.reject { |h| round_x.include? h }              
-                end
-                @winner = nil
-                print "\n\n"
-                print "MATCHES: " + matches.to_yaml     
-                @knockout_match = matches.first
-                @matches_count = matches.count
-                @knockout_id = knockouts.first.id
-              end
-            else            
-              print "MATCH: " + @knockout_match.to_yaml 
-              @matches_count = knockouts.count
-            end
-          end
-        else
-          # random Winner
-          winner_movie = @winner.sample
-          event_movie = EventMovie.where("event_id = ? AND movie_id = ?", @event.id, winner_movie.id).limit(1).first    
-          event_movie.winner = true
-          event_movie.save
-          @winner = []
-          @winner << winner_movie
-          @event.finished = true
-          @event.save  
-          @voting_ended = true
-        end
-        #print @winner.to_yaml
-      else
-        print "WINNER!!!"
-        @voting_ended = true
-       # print @winner.first
-      end    
-    end   
+    p "SHOW"
   end
 
   # GET /events/new
@@ -360,140 +117,104 @@ class Api::V1::EventsController < ApplicationController
   # POST /events
   # POST /events.json
   def create
-    @event = Event.new(event_params)
-
-    print @event.to_yaml
-    
-    @event.user_id = current_user.id
-    @event.rating_phase = "starting"
-    @event.rating_system = "voting"
-    @event.voting_range = "one_to_five"
-    @event.finished = false
-    
-    friend_ids = params[:users].split(",")
-    friend_ids.each do |friend_id| 
+    if token_and_options(request)
+      access_key = AccessKey.find_by_access_token(token_and_options(request))
+      @user = User.find_by_id(access_key.user_id)
+      
+      @event = Event.new(event_params)
+      print @event.to_yaml
+      
+      @event.user_id = @user.id
+      @event.rating_phase = "wait_users"
+      @event.rating_system = "voting"
+      @event.voting_range = "one_to_five"
+      @event.finished = false
+      
       event_user = EventUser.new
-      event_user.user_id = friend_id
+      event_user.user_id = @user.id
       event_user.event = @event
-      event_user.num_votes = 0;
-      
+      event_user.num_votes = 0; 
+      event_user.accept = "accepted";     
       @event.event_users << event_user
-    end
     
-    event_user = EventUser.new
-    event_user.user_id = current_user.id
-    event_user.event = @event
-    event_user.num_votes = 0;
-      
-    @event.event_users << event_user
-      
-    movie_ids = params[:movies].split(",")
-    movie_ids.each do |movie_id| 
-      event_movie = EventMovie.new
-      event_movie.movie_id = movie_id
-      event_movie.event = @event
-      event_movie.num_votes = 0;
-      event_movie.score = 0.0;
-      
-      @event.event_movies << event_movie
-    end
     
-    respond_to do |format|
-      if @event.save
-        format.html { redirect_to @event, notice: 'Event was successfully created.' }
-        format.json { render :show, status: :created, location: @event }
-      else
-        format.html { render :new }
-        format.json { render json: @event.errors, status: :unprocessable_entity }
+      friends_map ={}
+      friends_map[@user.id] = []
+    
+      params[:friends].each do |friend_id| 
+        event_user = EventUser.new
+        event_user.user_id = friend_id
+        event_user.event = @event
+        event_user.num_votes = 0;
+        event_user.accept = "waiting";
+        
+        friends_map[friend_id] = []
+        
+        @event.event_users << event_user
       end
-    end
+          
+      params[:movies].each do |movie_id| 
+        event_movie = EventMovie.new
+        event_movie.movie_id = movie_id
+        event_movie.event = @event
+        event_movie.num_votes = 0;
+        event_movie.score = 0.0;
+        
+        @event.event_movies << event_movie
+      end     
+      
+      if @event.save        
+        
+        print @event.to_yaml
+        
+        ids = {}
+        @event.users.each do |friend_user|                        
+          auth = Authorization.find_by_user_id_and_provider(friend_user.id, "facebook")
+          friend_user.fb_uid = auth.uid          
+          
+          friends_map.each do |k,array|
+            if friend_user.id != k  
+              event_user = EventUser.where("event_id = ? AND user_id = ?", @event.id, friend_user.id).limit(1).first              
+              friend_json = {id: friend_user.id, :name => friend_user.name, :username => friend_user.username, :fb_uid => auth.uid, :event_accepted => event_user.accept}           
+              friends_map[k] << friend_json
+            end              
+          end
+          
+          if friend_user.id != @user.id              
+            access_key = friend_user.access_key
+            if access_key && access_key.gcm_reg_id  
+              ids[friend_user.id] = friend_user.access_key.gcm_reg_id  
+            end   
+          end       
+        end
+                    
+        # Send invites
+        ids.each do |k, id| 
+          @event.friends = friends_map[k]
+          @event.event_status = "confirm"
+          
+          #event_json = {:event => @event.as_json(:include => { :movies => { :only => [:id, :title, :year, :poster ]}, :friends => { :only => [:id, :name, :username], :methods => :fb_uid}}, :methods => [:friends, :event_status])}
+          gcm = GCM.new(Rails.application.secrets.gcm_api_server_key.to_s)    
+          options = { :data => { :title =>"New Event", :body => build_event_json(@event), :"com.limpidgreen.cinevox.KEY_NEW_EVENT" => true } }
+          response = gcm.send([id], options)
+          p "RESPONSE: " + response.to_yaml
+        end                  
+           
+        @event.friends = friends_map[@user.id] 
+        @event.event_status = "waiting_others"
+        render json: build_event_json(@event), status: :created, location: @event    
+      else
+        render json: @event.errors, status: :unprocessable_entity 
+      end      
+    else
+      render :events => { :info => "Error" }, :status => 403
+    end 
   end
 
   # PATCH/PUT /events/1
   # PATCH/PUT /events/1.json
   def update
-    if !params[:vote].nil?
-      print "VOTE!!"
-
-      event_movie = EventMovie.where("event_id = ? AND movie_id = ?", @event.id, params[:movie_id]).limit(1).first  
-      if !event_movie.nil? 
-        event_user = EventUser.where("user_id = ? AND event_id = ?", params[:user_voted_id], @event.id).limit(1).first   
-        if !event_user.nil?
-          if event_user.num_votes >= @event.num_votes_per_user
-            notice = 'You can not vote more than ' +  @event.num_votes_per_user.to_s + ' times!'
-            
-            respond_to do |format|
-              if @event.update(event_params)
-                format.html { redirect_to @event, notice: notice }
-                format.json { render json: @event.errors, status: :unprocessable_entity }
-              else
-                format.html { render :edit }
-                format.json { render json: @event.errors, status: :unprocessable_entity }
-              end
-            end
-            return
-          end
-          
-          event_movie.num_votes = event_movie.num_votes + 1
-          event_movie.score = event_movie.score + params[:vote].to_f
-          
-          event_user.num_votes = event_user.num_votes + 1
-          
-          event_movie.save
-          event_user.save
-        end
-      end
-    elsif !params[:knockout_id].nil?
-      print "KNOCKOUT VOTE!"
-      event_knockout = EventKnockout.where("event_id = ? AND id = ?", @event.id, params[:knockout_id]).limit(1).first
-      knockout_user = KnockoutUser.where("event_knockout_id = ? AND user_id = ? ", event_knockout.id, current_user.id)
-      if knockout_user.nil? || knockout_user.empty?
-        knockout_user = KnockoutUser.new
-        knockout_user.user_id = current_user.id
-        knockout_user.event_knockout_id = event_knockout.id
-        knockout_user.num_votes = 1
-        knockout_user.save
-        
-        event_knockout.num_votes = event_knockout.num_votes + 1
-        print "MOVIE_ID: " +params[:movie_id].to_s
-        print "MOVIE_ID k: " +event_knockout.movie_id_1.to_s
-        if params[:movie_id].to_i == event_knockout.movie_id_1
-          print "VOTE FOR !1"
-          event_knockout.movie_1_score = event_knockout.movie_1_score + 1
-        elsif params[:movie_id].to_i == event_knockout.movie_id_2
-          print "VOTE FOR !2"
-          event_knockout.movie_2_score = event_knockout.movie_2_score + 1
-        end
-        if event_knockout.num_votes == @event.users.count
-          print "VOTING FINISHED"
-          event_knockout.finished = true
-        end
-        event_knockout.save
-      else
-        notice = 'You already voted for that Movie!'            
-        respond_to do |format|
-          if @event.update(event_params)
-            format.html { redirect_to @event, notice: notice }
-            format.json { render json: @event.errors, status: :unprocessable_entity }
-          else
-            format.html { render :edit }
-            format.json { render json: @event.errors, status: :unprocessable_entity }
-          end
-        end
-        return
-      end  
-      
-    end
-    
-    respond_to do |format|
-      if @event.update(event_params)
-        format.html { redirect_to @event, notice: 'Event was successfully updated.' }
-        format.json { render :show, status: :ok, location: @event }
-      else
-        format.html { render :edit }
-        format.json { render json: @event.errors, status: :unprocessable_entity }
-      end
-    end
+    p "UPDATE"
   end
 
   # DELETE /events/1
@@ -505,8 +226,331 @@ class Api::V1::EventsController < ApplicationController
       format.json { head :no_content }
     end
   end
+  
+  def confirm
+    if token_and_options(request)
+      access_key = AccessKey.find_by_access_token(token_and_options(request))
+      @user = User.find_by_id(access_key.user_id)       
+      event = Event.find(params[:id])
+      
+      @event_user = User.find_by_id(event.user_id)  
+      p "EVENT USER_: " + @event_user.to_yaml + "\n"
+      
+      if event.rating_phase == "wait_users"
+        accept = params[:accept]
+        
+        p "EVENT_: " + event.to_yaml
+        p "ACCEPT:" + accept.to_s
+                
+        all_confirmed = true  
+        friends_map ={}
+            
+        event_users = []
+        
+        event.users.each do |friend_user|                      
+          friends_map[friend_user.id] = []
+          
+          event_user = EventUser.where("event_id = ? AND user_id = ?", event.id, friend_user.id).limit(1).first              
+          p "EVENT USER:_ " +friend_user.id.to_s + " ACCEPTED:"  +event_user.accept.to_yaml
+          
+          if friend_user.id == @user.id                        
+            if accept == true
+              event_user.accept = "accepted"
+              
+              gcm = GCM.new(Rails.application.secrets.gcm_api_server_key.to_s)    
+              options = { :data => { :title =>@user.name + " will join your Movie Night!", :friend_id => @user.id, :confirm => true, :event_id => event.id, :event_name => event.name, :"com.limpidgreen.cinevox.KEY_EVENT_FRIEND_CONFIRM" => true } }
+              response = gcm.send([@event_user.access_key.gcm_reg_id], options)
+              p "RESPONSE: " + response.to_yaml
+            
+            else              
+              event_user.accept = "declined"
+              
+              gcm = GCM.new(Rails.application.secrets.gcm_api_server_key.to_s)    
+              options = { :data => { :title =>@user.name + " has declined your invitation!", :friend_id => @user.id, :confirm => false, :event_id => event.id, :event_name => event.name, :"com.limpidgreen.cinevox.KEY_EVENT_FRIEND_CONFIRM" => true } }
+              response = gcm.send([@event_user.access_key.gcm_reg_id], options)
+              p "RESPONSE: " + response.to_yaml
+            end
+            event_user.save
+                                    
+          elsif event_user.waiting?
+            all_confirmed = false              
+          end     
+          
+          if friend_user.id != @user.id    
+            auth = Authorization.find_by_user_id_and_provider(friend_user.id, "facebook")
+            friend_user.fb_uid = auth.uid
+            event_user = EventUser.where("event_id = ? AND user_id = ?", event.id, friend_user.id).limit(1).first              
+            friend_json = {id: friend_user.id, :name => friend_user.name, :username => friend_user.username, :fb_uid => auth.uid, :event_accepted => event_user.accept}           
+            event_users << friend_json              
+          end      
+        end
+                
+        event.friends = event_users
+        
+        if all_confirmed == true
+          event.rating_phase = "starting" 
+          event.event_status = "vote"        
+          event.save
+                    
+          ids = {}
+          event.users.each do |friend_user|                        
+            auth = Authorization.find_by_user_id_and_provider(friend_user.id, "facebook")
+            friend_user.fb_uid = auth.uid          
+            
+            friends_map.each do |k,array|
+              if friend_user.id != k  
+                event_user = EventUser.where("event_id = ? AND user_id = ?", event.id, friend_user.id).limit(1).first              
+                friend_json = {id: friend_user.id, :name => friend_user.name, :username => friend_user.username, :fb_uid => auth.uid, :event_accepted => event_user.accept}           
+                friends_map[k] << friend_json
+              end              
+            end
+            
+            if friend_user.id != @user.id              
+              access_key = friend_user.access_key
+              if access_key && access_key.gcm_reg_id  
+                ids[friend_user.id] = friend_user.access_key.gcm_reg_id  
+              end   
+            end       
+          end
+          
+          # Send invites
+          ids.each do |k, id| 
+            event.friends = friends_map[k]
+            gcm = GCM.new(Rails.application.secrets.gcm_api_server_key.to_s)    
+            options = { :data => { :title =>"Voting started!", :body => build_event_json(event), :"com.limpidgreen.cinevox.KEY_EVENT_VOTING" => true } }
+            response = gcm.send([id], options)
+            p "RESPONSE: " + response.to_yaml
+          end  
+          
+          event.friends = friends_map[@user.id] 
+        else
+          event.event_status = "waiting_others"     
+        end  
+        
+        render json: build_event_json(event), :status => 200, location: @event    
+     
+      else
+        render json: {:events => { :info => "Error" }}, :status => 404
+      end 
+    else
+      render :events => { :info => "Error" }, :status => 403
+    end
+  end
+  
+  def vote
+    if token_and_options(request)
+      access_key = AccessKey.find_by_access_token(token_and_options(request))
+      @user = User.find_by_id(access_key.user_id)       
+      event = Event.find(params[:id])
+      
+      p "EVENT: " + event.to_yaml + "\n"
+      p " RATED: " + params[:rated_movies].to_yaml
+      
+      if event.rating_phase == "starting" && !params[:rated_movies].nil? && params[:rated_movies].count == event.num_votes_per_user
+        event_user = EventUser.where("event_id = ? AND user_id = ?", event.id, @user.id).limit(1).first              
+               
+        if !event_user.nil? && event_user.accepted?
+          if event_user.num_votes < event.num_votes_per_user
+            begin
+              params[:rated_movies].each do |vote|
+                p "MOVIED IF: " + vote.id.to_s
+                event_user_vote = EventUserVote.where("event_id = ? AND user_id = ? AND movie_id = ?", event.id, @user.id, vote.id)
+                p "EVENT USER " + event_user_vote.to_yaml + "\n"
+                if event_user_vote.empty?
+                  p "NEW EVENT VOTE: \n" 
+                  event_movie = EventMovie.where("event_id = ? AND movie_id = ?", event.id, vote.id).limit(1).first  
+                  event_movie.num_votes = event_movie.num_votes + 1
+                  event_movie.score = event_movie.score + vote.score
+                  event_movie.save
+                  
+                  event_user_vote = EventUserVote.new
+                  event_user_vote.event_id = event.id
+                  event_user_vote.user_id = @user.id
+                  event_user_vote.movie_id = vote.id
+                  event_user_vote.score = vote.score
+                  p "EVENT VOTE: " + event_user_vote.to_yaml + "\n"
+                  event_user.num_votes = event_user.num_votes + 1
+                  event_user_vote.save
+                end 
+              end
+              event_user.save 
+              p "EVENT USER " + event_user.to_yaml + "\n"
+            end
+            
+            all_voted = true
+            votes_count = 0
+            votes_user_count = 0
+            friends_map ={}
+              
+            event_users = []
+            event.users.each do |friend_user|              
+              friends_map[friend_user.id] = []
+          
+              event_user = EventUser.where("event_id = ? AND user_id = ?", event.id, friend_user.id).limit(1).first              
+              if event_user.accepted? && event_user.num_votes != event.num_votes_per_user
+                all_voted = false
+              elsif event_user.accepted? && event_user.num_votes == event.num_votes_per_user
+                votes_user_count = votes_user_count + 1
+                votes_count = votes_count + event_user.num_votes
+              end
+                                                
+              if friend_user.id != @user.id    
+                auth = Authorization.find_by_user_id_and_provider(friend_user.id, "facebook")
+                friend_user.fb_uid = auth.uid
+                friend_json = {id: friend_user.id, :name => friend_user.name, :username => friend_user.username, :fb_uid => auth.uid, :event_accepted => event_user.accept}           
+                event_users << friend_json              
+              end      
+            end 
+            event.friends = event_users
+                        
+            voting_percent = (votes_user_count * 100) / event.users.count 
+            votes_percent = votes_count * 100 / (event.users.count * event.num_votes_per_user) 
+            print "PERCENT: " + voting_percent.to_s
+            print "VOTES PERCENT: " + votes_percent.to_s
+              
+            if event.minimum_voting_percent <= voting_percent && event.minimum_voting_percent <= votes_percent
+              print "VOTING ENDED!" 
+              highest_score = 0
+              highest_score_count = 0
+              @winner = []
+              
+              event.movies.each do |movie|
+                event_movie = EventMovie.where("event_id = ? AND movie_id = ?", event.id, movie.id).limit(1).first    
+                if !event_movie.nil?
+                  if event_movie.score != 0
+                    movie.voting_score = (event_movie.score / event_movie.num_votes)                   
+                    if movie.voting_score > highest_score
+                      highest_score = movie.voting_score
+                      highest_score_count = 1
+                      @winner = []
+                      @winner << movie
+                    elsif movie.voting_score == highest_score
+                      highest_score_count = highest_score_count + 1
+                      @winner << movie
+                    end
+                  end
+                end
+              end 
+              
+              if highest_score_count > 1
+                print "TIE!!"
+                #if event.tie_knockout == true
+                #else
+                  # random Winner
+                  winner_movie = @winner.sample
+                  event_movie = EventMovie.where("event_id = ? AND movie_id = ?", event.id, winner_movie.id).limit(1).first    
+                  event_movie.winner = true
+                  event_movie.save
+                  event.finished = true
+                  event.save  
+                  
+                  event.event_status = "winner" 
+                  event.winner_movie = winner_movie.id
+                  
+                  ids = {}
+                  event.users.each do |friend_user|                        
+                    auth = Authorization.find_by_user_id_and_provider(friend_user.id, "facebook")
+                    friend_user.fb_uid = auth.uid          
+                    
+                    friends_map.each do |k,array|
+                      if friend_user.id != k  
+                        event_user = EventUser.where("event_id = ? AND user_id = ?", event.id, friend_user.id).limit(1).first              
+                        friend_json = {id: friend_user.id, :name => friend_user.name, :username => friend_user.username, :fb_uid => auth.uid, :event_accepted => event_user.accept}           
+                        friends_map[k] << friend_json
+                      end              
+                    end
+                    
+                    if friend_user.id != @user.id              
+                      access_key = friend_user.access_key
+                      if access_key && access_key.gcm_reg_id  
+                        ids[friend_user.id] = friend_user.access_key.gcm_reg_id  
+                      end   
+                    end       
+                  end
+                  
+                  # Send invites
+                  ids.each do |k, id| 
+                    event.friends = friends_map[k]
+                    gcm = GCM.new(Rails.application.secrets.gcm_api_server_key.to_s)    
+                    options = { :data => { :title =>"We have a Winner!", :body => build_event_json(event), :"com.limpidgreen.cinevox.KEY_EVENT_WINNER" => true } }
+                    response = gcm.send([id], options)
+                    p "RESPONSE: " + response.to_yaml
+                  end  
+                  
+                  event.friends = friends_map[@user.id] 
+                #end
+              else                  
+                winner_movie = @winner.first
+                event_movie = EventMovie.where("event_id = ? AND movie_id = ?", event.id, winner_movie.id).limit(1).first    
+                event_movie.winner = true
+                event_movie.save
+                event.finished = true
+                event.save  
+                event.event_status = "winner" 
+                event.winner_movie = winner_movie.id
+                
+                ids = {}
+                event.users.each do |friend_user|                        
+                  auth = Authorization.find_by_user_id_and_provider(friend_user.id, "facebook")
+                  friend_user.fb_uid = auth.uid          
+                  
+                  friends_map.each do |k,array|
+                    if friend_user.id != k  
+                      event_user = EventUser.where("event_id = ? AND user_id = ?", event.id, friend_user.id).limit(1).first              
+                      friend_json = {id: friend_user.id, :name => friend_user.name, :username => friend_user.username, :fb_uid => auth.uid, :event_accepted => event_user.accept}           
+                      friends_map[k] << friend_json
+                    end              
+                  end
+                  
+                  if friend_user.id != @user.id              
+                    access_key = friend_user.access_key
+                    if access_key && access_key.gcm_reg_id  
+                      ids[friend_user.id] = friend_user.access_key.gcm_reg_id  
+                    end   
+                  end       
+                end
+                
+                # Send invites
+                ids.each do |k, id| 
+                  event.friends = friends_map[k]
+                  gcm = GCM.new(Rails.application.secrets.gcm_api_server_key.to_s)    
+                  options = { :data => { :title =>"We have a Winner!", :body => build_event_json(event), :"com.limpidgreen.cinevox.KEY_EVENT_WINNER" => true } }
+                  response = gcm.send([id], options)
+                  p "RESPONSE: " + response.to_yaml
+                end  
+                
+                event.friends = friends_map[@user.id] 
+              end              
+            else
+              event.event_status = "waiting_others"
+            end
+                       
+            render json: build_event_json(event), :status => 200, location: @event    
+          else
+            render json: {:events => { :info => "Already Voted" }}, :status => 403
+          end
+          
+          #render json: build_event_json(event), :status => 200, location: @event   
+        else
+          render json: {:events => { :info => "Error" }}, :status => 404
+        end
+      else
+        render json: {:events => { :info => "Error" }}, :status => 404
+      end 
+    else
+      render :events => { :info => "Error" }, :status => 403
+    end
+  end
 
   private
+    def build_event_json(event)
+      event_json = {:event => event.as_json(:include => { :movies => { :only => [:id, :title, :year, :poster ]}}, :methods => [:friends, :event_status, :winner_movie])}       
+    end
+    
+    def build_events_json(events)
+      events_json = {:events => events.as_json(:include => { :movies => { :only => [:id, :title, :year, :poster ]}}, :methods => [:friends, :event_status, :winner_movie])} 
+    end
+  
     # Use callbacks to share common setup or constraints between actions.
     def set_event
       @event = Event.find(params[:id])
@@ -514,7 +558,7 @@ class Api::V1::EventsController < ApplicationController
 
     # Never trust parameters from the scary internet, only allow the white list through.
     def event_params
-      params.require(:event).permit(:name, :description, :event_date, :event_time, :place, :time_limit, :minimum_voting_percent, :users_can_add_movies, :num_add_movies_by_user, :num_votes_per_user, :tie_knockout, :knockout_time_limit, :wait_time_limit)
+      params.require(:event).permit(:name, :description, :event_date, :event_time, :place, :time_limit, :minimum_voting_percent, :users_can_add_movies, :num_add_movies_by_user, :num_votes_per_user, :tie_knockout, :knockout_time_limit, :wait_time_limit, :finished, :knockout_phase, :knockout_rounds, :rating_phase, :rating_system, :voting_range)
     end
         
     def restrict_access

@@ -1,5 +1,5 @@
 class Api::V1::SessionsController < ApplicationController
-  protect_from_forgery with: :null_session, :if => Proc.new { |c| c.request.format == 'application/vnd.myapp.v1' }
+  #protect_from_forgery with: :null_session, :if => Proc.new { |c| c.request.format == 'application/vnd.cinevox.v1' }
 
   def create
     print "SESSION CREATE \n"
@@ -10,13 +10,13 @@ class Api::V1::SessionsController < ApplicationController
           user_result = @graph.get_connections("me?fields=id,email,name&access_token=" + params[:access_token], "")
           
           if params[:uid] == user_result.id       
-            p "APP ID: " + Rails.application.secrets.omniauth_provider_key.to_s   
-            p "APP ID: " + Rails.application.secrets.omniauth_provider_secret.to_s   
-            @oauth = Koala::Facebook::OAuth.new(Rails.application.secrets.omniauth_provider_key.to_s, Rails.application.secrets.omniauth_provider_secret.to_s)
-            app_token = @oauth.get_app_access_token   
-            p " UTGH T: " + @oauth.get_app_access_token.to_s      
-            verification_result = @graph.get_connections("debug_token?input_token=" + app_token + "&access_token=" + params[:access_token], "")
-            is_valid = verification_result.data.is_valid
+            #p "APP ID: " + Rails.application.secrets.omniauth_provider_key.to_s   
+            #p "APP ID: " + Rails.application.secrets.omniauth_provider_secret.to_s   
+            #@oauth = Koala::Facebook::OAuth.new(Rails.application.secrets.omniauth_provider_key.to_s, Rails.application.secrets.omniauth_provider_secret.to_s)
+            ##app_token = @oauth.get_app_access_token   
+            #p " UTGH T: " + @oauth.get_app_access_token.to_s      
+            #verification_result = @graph.get_connections("debug_token?input_token=" + app_token + "&access_token=" + params[:access_token], "")
+            is_valid = true#verification_result.data.is_valid
             if is_valid == true
               print "IS VALID!!!"
               

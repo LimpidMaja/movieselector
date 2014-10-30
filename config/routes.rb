@@ -4,7 +4,15 @@ Movieselector::Application.routes.draw do
   namespace :api, defaults: {format: 'json'} do
     scope module: :v1, constraints: ApiConstraints.new(version: 1, default: true) do
       resources :users
-      resources :events 
+      resources :events  do
+        member do
+          post 'confirm', :as => :confirm_event 
+          post 'vote', :as => :vote_event 
+        end
+      end
+      resources :friends 
+      get "/movies/autocomplete", :to => "movies#autocomplete", :as => :autocomplete_movies
+      resources :movies
       #devise_scope :user do
        # match '/sessions' => 'sessions#create', :via => :post
        # match '/sessions' => 'sessions#destroy', :via => :delete

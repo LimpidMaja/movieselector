@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20141014164833) do
+ActiveRecord::Schema.define(version: 20141030101132) do
 
   create_table "access_keys", force: true do |t|
     t.string   "access_token"
@@ -91,10 +91,20 @@ ActiveRecord::Schema.define(version: 20141014164833) do
     t.boolean "winner"
   end
 
+  create_table "event_user_votes", force: true do |t|
+    t.integer  "movie_id"
+    t.integer  "event_id"
+    t.integer  "user_id"
+    t.integer  "score"
+    t.datetime "created_at"
+    t.datetime "updated_at"
+  end
+
   create_table "event_users", force: true do |t|
     t.integer "user_id"
     t.integer "event_id"
     t.integer "num_votes"
+    t.integer "accept",    default: 0
   end
 
   create_table "events", force: true do |t|
@@ -113,7 +123,7 @@ ActiveRecord::Schema.define(version: 20141014164833) do
     t.integer  "num_votes_per_user"
     t.integer  "voting_range",           default: 0
     t.boolean  "tie_knockout"
-    t.integer  "knockout_rounds"
+    t.integer  "knockout_rounds",        default: 5
     t.integer  "knockout_time_limit"
     t.boolean  "wait_time_limit"
     t.datetime "created_at"
