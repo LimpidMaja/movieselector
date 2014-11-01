@@ -13,4 +13,5 @@ class Event < ActiveRecord::Base
   attr_accessor :friends
   attr_accessor :event_status
   attr_accessor :winner_movie
+  attr_accessor :knockout_matches
 end

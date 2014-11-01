@@ -8,6 +8,7 @@ Movieselector::Application.routes.draw do
         member do
           post 'confirm', :as => :confirm_event 
           post 'vote', :as => :vote_event 
+          post 'knockout_vote', :as => :knockout_vote_event 
         end
       end
       resources :friends 

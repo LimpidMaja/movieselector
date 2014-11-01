@@ -28,6 +28,7 @@ class Api::V1::EventsController < ApplicationController
           
           event.users.each do |friend_user| 
             event_user = nil
+            
             if event.rating_phase == "wait_users"
               event_user = EventUser.where("event_id = ? AND user_id = ?", event.id, friend_user.id).limit(1).first              
               p "EVENT USER:_ " +friend_user.id.to_s + " ACCEPTED:"  +event_user.accept.to_yaml + "\n"
@@ -64,13 +65,13 @@ class Api::V1::EventsController < ApplicationController
               event_users << friend_json              
             end
           end
-          
+          event.friends = event_users
+                    
           voting_percent = (votes_user_count * 100) / event.users.count 
           votes_percent = votes_count * 100 / (event.users.count * event.num_votes_per_user) 
           print "PERCENT: " + voting_percent.to_s
           print "VOTES PERCENT: " + votes_percent.to_s
             
-          #if event.minimum_voting_percent <= voting_percent && event.minimum_voting_percent <= votes_percent
           if event.finished == true
             event_movie = EventMovie.where("event_id = ? AND winner = true", event.id).limit(1).first
             movie = EventMovie.where("event_id = ? AND winner = true", event.id).limit(1).first    
@@ -83,8 +84,26 @@ class Api::V1::EventsController < ApplicationController
           elsif all_voted == true && event.minimum_voting_percent <= voting_percent && event.minimum_voting_percent <= votes_percent
             event.event_status = "winner"                     
           end
+          
+          if  event.finished == false && event.rating_phase == "knockout_match"
+            knockouts =  EventKnockout.where("event_id = ? AND round = ? AND finished = false", event.id, event.knockout_phase).order('id ASC')
+            print "knockouts: " + knockouts.to_yaml 
+            @knockout_match = []
+            knockouts.each do |event_knockout|
+              knockout_user = KnockoutUser.where("event_knockout_id = ? AND user_id = ? ", event_knockout.id, @user.id).limit(1).first
+              if knockout_user.nil? 
+                knockout_json = {id: event_knockout.id, :movie_id_1 => event_knockout.movie_id_1, :movie_id_2 => event_knockout.movie_id_2, :round => event_knockout.round}  
+                event.knockout_matches = knockout_json
+                event.event_status = "knockout_choose"   
+                break
+              end                      
+            end
+                        
+            if event.knockout_matches.nil?
+              event.event_status = "waiting_others"   
+            end           
+          end
                    
-          event.friends = event_users
         else
           @past_events << event 
         end
@@ -129,6 +148,9 @@ class Api::V1::EventsController < ApplicationController
       @event.rating_system = "voting"
       @event.voting_range = "one_to_five"
       @event.finished = false
+      
+      
+      @event.num_votes_per_user = 4
       
       event_user = EventUser.new
       event_user.user_id = @user.id
@@ -383,15 +405,16 @@ class Api::V1::EventsController < ApplicationController
             friends_map ={}
               
             event_users = []
-            event.users.each do |friend_user|              
-              friends_map[friend_user.id] = []
+            event.users.each do |friend_user|     
           
               event_user = EventUser.where("event_id = ? AND user_id = ?", event.id, friend_user.id).limit(1).first              
               if event_user.accepted? && event_user.num_votes != event.num_votes_per_user
-                all_voted = false
+                all_voted = false         
+                friends_map[friend_user.id] = []
               elsif event_user.accepted? && event_user.num_votes == event.num_votes_per_user
                 votes_user_count = votes_user_count + 1
-                votes_count = votes_count + event_user.num_votes
+                votes_count = votes_count + event_user.num_votes         
+                friends_map[friend_user.id] = []
               end
                                                 
               if friend_user.id != @user.id    
@@ -434,8 +457,92 @@ class Api::V1::EventsController < ApplicationController
               
               if highest_score_count > 1
                 print "TIE!!"
-                #if event.tie_knockout == true
-                #else
+                if event.tie_knockout == true                  
+                  print "KNOCKOUT"
+                  
+                  if !event.knockout_rounds.nil? && event.knockout_rounds != 0
+                    if @winner.count > (2 ** event.knockout_rounds)
+                      @winner = @winner.sample(2 ** event.knockout_rounds)
+                    end
+                  end                   
+                                      
+                  matches = []
+                  knockouts = []
+                  while !@winner.empty?            
+                    round_x = @winner.sample(2)
+                    matches << round_x
+                    
+                    print "ROUND1: " + round_x.to_yaml
+                    knockout = EventKnockout.new
+                    knockout.event = event
+                    knockout.movie_id_1 = round_x.first.id
+                    if round_x.count > 1
+                      knockout.movie_id_2 = round_x.last.id
+                      knockout.movie_1_score = 0
+                      knockout.movie_2_score = 0
+                      knockout.round = 1
+                      knockout.num_votes = 0
+                      knockout.finished = false
+                    else
+                      knockout.movie_id_2 = 0
+                      knockout.movie_1_score = 1
+                      knockout.movie_2_score = 0
+                      knockout.round = 1                  
+                      knockout.num_votes = 1
+                      knockout.finished = true
+                    end                
+                    knockout.save
+                    knockouts << knockout
+                    @winner = @winner.reject { |h| round_x.include? h }              
+                  end
+                  @winner = nil
+                  print "\n\n"
+                  print "MATCHES: " + matches.to_yaml                     
+                  
+                  event.rating_phase = "knockout_match" 
+                  event.event_status = "knockout_choose"        
+                  event.knockout_phase = 1
+                  event.save
+                                                      
+                  knockout = knockouts.first                  
+                  knockout_json = {id: knockout.id, :movie_id_1 => knockout.movie_id_1, :movie_id_2 => knockout.movie_id_2, :round => knockout.round}           
+                        
+                  event.knockout_matches = knockout_json
+                  
+                  ids = {}
+                  event.users.each do |friend_user|                        
+                    auth = Authorization.find_by_user_id_and_provider(friend_user.id, "facebook")
+                    friend_user.fb_uid = auth.uid          
+                    
+                    friends_map.each do |k,array|
+                      if friend_user.id != k  
+                        event_user = EventUser.where("event_id = ? AND user_id = ?", event.id, friend_user.id).limit(1).first              
+                        friend_json = {id: friend_user.id, :name => friend_user.name, :username => friend_user.username, :fb_uid => auth.uid, :event_accepted => event_user.accept}           
+                        friends_map[k] << friend_json
+                      end              
+                    end
+                    
+                    if friend_user.id != @user.id              
+                      access_key = friend_user.access_key
+                      if access_key && access_key.gcm_reg_id  
+                        ids[friend_user.id] = friend_user.access_key.gcm_reg_id  
+                      end   
+                    end       
+                  end
+                  
+                  # Send invites for Knockout
+                  ids.each do |k, id| 
+                    event.friends = friends_map[k]
+                    gcm = GCM.new(Rails.application.secrets.gcm_api_server_key.to_s)    
+                    options = { :data => { :title =>"Knockout!", :body => build_event_json(event), :"com.limpidgreen.cinevox.KEY_EVENT_KNOCKOUT" => true } }
+                    response = gcm.send([id], options)
+                    p "RESPONSE: " + response.to_yaml
+                  end  
+                  
+                  event.friends = friends_map[@user.id] 
+                  
+                  # end knockout
+                else
                   # random Winner
                   winner_movie = @winner.sample
                   event_movie = EventMovie.where("event_id = ? AND movie_id = ?", event.id, winner_movie.id).limit(1).first    
@@ -478,7 +585,7 @@ class Api::V1::EventsController < ApplicationController
                   end  
                   
                   event.friends = friends_map[@user.id] 
-                #end
+                end
               else                  
                 winner_movie = @winner.first
                 event_movie = EventMovie.where("event_id = ? AND movie_id = ?", event.id, winner_movie.id).limit(1).first    
@@ -542,13 +649,235 @@ class Api::V1::EventsController < ApplicationController
     end
   end
 
+  def knockout_vote
+    if token_and_options(request)
+      access_key = AccessKey.find_by_access_token(token_and_options(request))
+      @user = User.find_by_id(access_key.user_id)       
+      event = Event.find(params[:id])
+      
+      p "EVENT: " + event.to_yaml + "\n"
+      p " VOTED: " + params[:movie_id].to_s
+      
+      if event.rating_phase == "knockout_match" && !params[:movie_id].nil? && !params[:knockout_id].nil?
+        event_knockout = EventKnockout.where("event_id = ? AND id = ?", event.id, params[:knockout_id]).limit(1).first
+        p " event_knockout " + event_knockout.to_yaml + "\n"
+        knockout_user = KnockoutUser.where("event_knockout_id = ? AND user_id = ? ", event_knockout.id, @user.id)
+        p " knockout_user " + knockout_user.to_yaml + "\n"
+      
+        if knockout_user.nil? || knockout_user.empty?          
+          p " START " 
+          begin
+            knockout_user = KnockoutUser.new
+            knockout_user.user_id = @user.id
+            knockout_user.event_knockout_id = event_knockout.id
+            knockout_user.num_votes = 1
+            knockout_user.save
+                
+            event_knockout.num_votes = event_knockout.num_votes + 1
+            if params[:movie_id].to_i == event_knockout.movie_id_1
+              print "VOTE FOR !1"
+              event_knockout.movie_1_score = event_knockout.movie_1_score + 1
+            elsif params[:movie_id].to_i == event_knockout.movie_id_2
+              print "VOTE FOR !2"
+              event_knockout.movie_2_score = event_knockout.movie_2_score + 1
+            end            
+            event_knockout.save
+          end  
+            
+          all_voted = true
+          votes_user_count = 0
+          friends_map ={}
+              
+          event_users = []
+          event.users.each do |friend_user|   
+            knockout_user = KnockoutUser.where("event_knockout_id = ? AND user_id = ? ", event_knockout.id, friend_user.id).limit(1).first       
+            event_user = EventUser.where("event_id = ? AND user_id = ?", event.id, friend_user.id).limit(1).first   
+                       
+            if event_user.accepted? && !knockout_user.nil? && knockout_user.num_votes == 1
+              votes_user_count = votes_user_count + 1       
+              friends_map[friend_user.id] = []
+            elsif event_user.accepted? 
+              all_voted = false                                          
+              friends_map[friend_user.id] = []
+            end
+                                              
+            if friend_user.id != @user.id    
+              auth = Authorization.find_by_user_id_and_provider(friend_user.id, "facebook")
+              friend_user.fb_uid = auth.uid
+              friend_json = {id: friend_user.id, :name => friend_user.name, :username => friend_user.username, :fb_uid => auth.uid, :event_accepted => event_user.accept}           
+              event_users << friend_json              
+            end      
+          end 
+          event.friends = event_users
+                        
+          voting_percent = (votes_user_count * 100) / event.users.count  
+          print "PERCENT: " + voting_percent.to_s
+            
+          if event.minimum_voting_percent <= voting_percent
+            print "KNOCKOUT ENDED!" 
+            event_knockout.finished = true
+            event_knockout.save
+            
+            knockouts =  EventKnockout.where("event_id = ? AND round = ? ", event.id, event.knockout_phase).order('id ASC')
+            print "knockouts: " + knockouts.to_yaml 
+            @knockout_match = []
+            knockouts.each do |knockout|
+              if knockout.finished != true
+                @knockout_match << knockout.movie_id_1
+                @knockout_match << knockout.movie_id_2
+                @knockout_id = knockout.id
+                
+                knockout_user = KnockoutUser.where("event_knockout_id = ? AND user_id = ? ", knockout.id, @user.id).limit(1).first
+                if knockout_user.nil? 
+                  knockout_json = {id: knockout.id, :movie_id_1 => knockout.movie_id_1, :movie_id_2 => knockout.movie_id_2, :round => knockout.round}  
+                  event.knockout_matches = knockout_json
+                  event.event_status = "knockout_choose"
+                end
+                break
+              end
+            end
+                       
+            if @knockout_match.empty?
+              if knockouts.count == 1  
+                @winner = []       
+                knockouts.each do |knockout|
+                  if knockout.movie_1_score > knockout.movie_2_score
+                    print "WON FIRST"
+                    @winner << knockout.movie_id_1               
+                  elsif knockout.movie_2_score > knockout.movie_1_score  
+                    print "WON SECOND"      
+                    @winner << knockout.movie_id_2          
+                  else       
+                    @winner << knockout.movie_id_1             
+                    @winner << knockout.movie_id_2          
+                    movie_id = @winner.sample
+                    print "WON RANDOM"
+                    @winner = []
+                    @winner << movie_id
+                  end
+                end
+                       
+                winner_movie_id = @winner.first
+                event_movie = EventMovie.where("event_id = ? AND movie_id = ?", event.id, winner_movie_id).limit(1).first    
+                event_movie.winner = true
+                event_movie.save
+                event.finished = true
+                event.save  
+                event.event_status = "winner" 
+                event.winner_movie = winner_movie_id
+                                                        
+                send_invites(event, friends_map, "winner")
+                
+                event.friends = friends_map[@user.id]              
+              else      
+                #new knockout phase         
+                event.knockout_phase = event.knockout_phase + 1
+                event.save
+              
+                matches = []
+                @winner = []
+                knockouts.each do |knockout|
+                  if knockout.movie_1_score > knockout.movie_2_score 
+                    @winner << knockout.movie_id_1              
+                  elsif knockout.movie_2_score > knockout.movie_1_score     
+                    @winner << knockout.movie_id_2          
+                  else
+                    temp = []       
+                    temp << knockout.movie_id_1       
+                    temp << knockout.movie_id_2         
+                    movie_id = temp.sample
+                    @winner << movie_id
+                  end
+                end         
+                
+                print "NEXT ROUND WINNERS: " + @winner.to_yaml     
+                
+                knockouts = []
+                while !@winner.empty?            
+                  round_x = @winner.sample(2)
+                  matches << round_x
+                  
+                  print "ROUND1: " + round_x.to_yaml
+                  knockout = EventKnockout.new
+                  knockout.event = event
+                  knockout.movie_id_1 = round_x.first
+                  if round_x.count > 1
+                    knockout.movie_id_2 = round_x.last
+                    knockout.movie_1_score = 0
+                    knockout.movie_2_score = 0
+                    knockout.round = event.knockout_phase
+                    knockout.num_votes = 0
+                    knockout.finished = false
+                  else
+                    knockout.movie_id_2 = 0
+                    knockout.movie_1_score = 1
+                    knockout.movie_2_score = 0
+                    knockout.round = event.knockout_phase                  
+                    knockout.num_votes = 1
+                    knockout.finished = true
+                  end                
+                  knockout.save
+                  knockouts << knockout
+                  #print "\n\n"
+                  @winner = @winner.reject { |h| round_x.include? h }              
+                end
+                @winner = nil
+                print "\n\n"
+                print "MATCHES: " + matches.to_yaml     
+                
+                event.event_status = "knockout_choose"   
+                     
+                knockout = knockouts.first                  
+                knockout_json = {id: knockout.id, :movie_id_1 => knockout.movie_id_1, :movie_id_2 => knockout.movie_id_2, :round => knockout.round}           
+                      
+                event.knockout_matches = knockout_json
+                
+                send_invites(event, friends_map, "knockout")
+                event.friends = friends_map[@user.id]  
+              end
+            end                        
+          else
+            knockouts =  EventKnockout.where("event_id = ? AND round = ? ", event.id, event.knockout_phase).order('id ASC')
+            print "knockouts: " + knockouts.to_yaml 
+            
+            found = false
+            knockouts.each do |knockout_event|
+              if knockout_event.finished != true                
+                knockout_user = KnockoutUser.where("event_knockout_id = ? AND user_id = ? ", knockout_event.id, @user.id).limit(1).first
+                if knockout_user.nil? 
+                  knockout_json = {id: knockout_event.id, :movie_id_1 => knockout_event.movie_id_1, :movie_id_2 => knockout_event.movie_id_2, :round => knockout_event.round}  
+                  event.knockout_matches = knockout_json
+                  event.event_status = "knockout_choose"                  
+                  found = true
+                  break
+                end
+              end
+            end
+            
+            if !found
+              event.event_status = "waiting_others"
+            end
+          end
+                     
+          render json: build_event_json(event), :status => 200, location: @event    
+        else
+          render json: {:events => { :info => "Already Voted" }}, :status => 405
+        end          
+      else
+        render json: {:events => { :info => "Error" }}, :status => 404
+      end 
+    else
+      render :events => { :info => "Error" }, :status => 403
+    end
+  end
+  
   private
     def build_event_json(event)
-      event_json = {:event => event.as_json(:include => { :movies => { :only => [:id, :title, :year, :poster ]}}, :methods => [:friends, :event_status, :winner_movie])}       
+      event_json = {:event => event.as_json(:include => { :movies => { :only => [:id, :title, :year, :poster ]}}, :methods => [:friends, :knockout_matches, :event_status, :winner_movie])}       
     end
     
     def build_events_json(events)
-      events_json = {:events => events.as_json(:include => { :movies => { :only => [:id, :title, :year, :poster ]}}, :methods => [:friends, :event_status, :winner_movie])} 
+      events_json = {:events => events.as_json(:include => { :movies => { :only => [:id, :title, :year, :poster ]}}, :methods => [:friends, :knockout_matches, :event_status, :winner_movie])} 
     end
   
     # Use callbacks to share common setup or constraints between actions.
@@ -567,5 +896,45 @@ class Api::V1::EventsController < ApplicationController
         @token = token
         AccessKey.exists?(access_token: token)
       end
+    end
+    
+    def send_invites(event, friends_map, subject)
+      ids = {}
+      event.users.each do |friend_user|                        
+        auth = Authorization.find_by_user_id_and_provider(friend_user.id, "facebook")
+        friend_user.fb_uid = auth.uid          
+        
+        friends_map.each do |k,array|
+          if friend_user.id != k  
+            event_user = EventUser.where("event_id = ? AND user_id = ?", event.id, friend_user.id).limit(1).first              
+            friend_json = {id: friend_user.id, :name => friend_user.name, :username => friend_user.username, :fb_uid => auth.uid, :event_accepted => event_user.accept}           
+            friends_map[k] << friend_json
+          end              
+        end
+        
+        if friend_user.id != @user.id              
+          access_key = friend_user.access_key
+          if access_key && access_key.gcm_reg_id  
+            ids[friend_user.id] = friend_user.access_key.gcm_reg_id  
+          end   
+        end       
+      end
+      
+      # Send invites
+      ids.each do |k, id| 
+        event.friends = friends_map[k]
+        gcm = GCM.new(Rails.application.secrets.gcm_api_server_key.to_s)   
+        if subject == "winner" 
+          options = { :data => { :title =>"We have a Winner!", :body => build_event_json(event), :"com.limpidgreen.cinevox.KEY_EVENT_WINNER" => true } }
+        elsif subject == "knockout" 
+          options = { :data => { :title =>"Knockout!", :body => build_event_json(event), :"com.limpidgreen.cinevox.KEY_EVENT_KNOCKOUT" => true } }            
+        elsif subject == "vote" 
+          options = { :data => { :title =>"Voting started!", :body => build_event_json(event), :"com.limpidgreen.cinevox.KEY_EVENT_VOTING" => true } }
+        elsif subject == "new_event" 
+          options = { :data => { :title =>"New Event", :body => build_event_json(event), :"com.limpidgreen.cinevox.KEY_NEW_EVENT" => true } }
+        end
+        response = gcm.send([id], options)
+        p "RESPONSE: " + response.to_yaml
+      end  
     end
 end
