@@ -147,10 +147,7 @@ class Api::V1::EventsController < ApplicationController
       @event.rating_phase = "wait_users"
       @event.rating_system = "voting"
       @event.voting_range = "one_to_five"
-      @event.finished = false
-      
-      
-      @event.num_votes_per_user = 4
+      @event.finished = false    
       
       event_user = EventUser.new
       event_user.user_id = @user.id
