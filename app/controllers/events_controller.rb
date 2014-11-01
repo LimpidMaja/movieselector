@@ -56,15 +56,7 @@ class EventsController < ApplicationController
         @past_events << event 
       end
     end
-    
-    require 'gcm'
-    p "GCM KEY" + Rails.application.secrets.gcm_api_server_key.to_s
-    gcm = GCM.new(Rails.application.secrets.gcm_api_server_key.to_s)
-    #registration_ids= [@user.access_key.gcm_reg_id, "ANOTHER-DEVICE-ID"]
-    registration_ids = [@user.access_key.gcm_reg_id]
-    options = { :data => { :title =>"New Event", :body => "this is a longer message" } }
-    response = gcm.send(registration_ids, options)
-    
+       
     @my_events = Event.where("user_id = ?", @user.id)
   end
 
