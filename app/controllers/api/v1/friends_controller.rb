@@ -197,7 +197,7 @@ class Api::V1::FriendsController < ApplicationController
             
             if !friend_user.access_key.nil? && !friend_user.access_key.gcm_reg_id.nil?
               auth_user = Authorization.find_by_user_id_and_provider(@user.id, "facebook")
-              json = { :friend => { :id => @user.id, :name => @user.name, :username => @user.username, :facebookUID => auth_user.uid, :confirmed => false, :request => true }}
+              json = { :friend => { :id => @user.id, :name => @user.name, :username => @user.username, :facebookUID => auth_user.uid, :confirmed => true, :request => false }}
          
               gcm = GCM.new(Rails.application.secrets.gcm_api_server_key.to_s)   
               options = { :data => { :title => @user.name + " Accepted your Friend Request", :body => json, :"com.limpidgreen.cinevox.KEY_FRIEND_REQUEST_ACCEPTED" => true } }
