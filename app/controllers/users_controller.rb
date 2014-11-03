@@ -248,7 +248,14 @@ class UsersController < ApplicationController
           friend_new.friend_id = friend_user.id
           auth = Authorization.find_by_user_id_and_provider(friend_user.id, "facebook")
           friend_new.facebook_id = auth.uid
-          friend_new.friend_confirm = true
+          friend_request = Friend.find_by_user_id_and_friend_id(friend_user.id, @user.id)
+          if friend_request
+            friend_request.friend_confirm = true              
+            friend.friend_confirm = true
+            friend_request.save
+          else
+            friend.friend_confirm = false              
+          end
           friend_new.save
           puts friend_new.to_yaml
         end

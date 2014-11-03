@@ -61,7 +61,7 @@ class Api::V1::EventsController < ApplicationController
               if event_user.nil?
                 event_user = EventUser.where("event_id = ? AND user_id = ?", event.id, friend_user.id).limit(1).first              
               end                   
-              friend_json = {id: friend_user.id, :name => friend_user.name, :username => friend_user.username, :fb_uid => auth.uid, :event_accepted => event_user.accept}           
+              friend_json = {id: friend_user.id, :name => friend_user.name, :username => friend_user.username, :fb_uid => auth.uid, :event_accepted => event_user.accept, :confirmed => true}           
               event_users << friend_json              
             end
           end
@@ -195,7 +195,7 @@ class Api::V1::EventsController < ApplicationController
           friends_map.each do |k,array|
             if friend_user.id != k  
               event_user = EventUser.where("event_id = ? AND user_id = ?", @event.id, friend_user.id).limit(1).first              
-              friend_json = {id: friend_user.id, :name => friend_user.name, :username => friend_user.username, :fb_uid => auth.uid, :event_accepted => event_user.accept}           
+              friend_json = {id: friend_user.id, :name => friend_user.name, :username => friend_user.username, :fb_uid => auth.uid, :event_accepted => event_user.accept, :confirmed => true}           
               friends_map[k] << friend_json
             end              
           end
@@ -300,7 +300,7 @@ class Api::V1::EventsController < ApplicationController
             auth = Authorization.find_by_user_id_and_provider(friend_user.id, "facebook")
             friend_user.fb_uid = auth.uid
             event_user = EventUser.where("event_id = ? AND user_id = ?", event.id, friend_user.id).limit(1).first              
-            friend_json = {id: friend_user.id, :name => friend_user.name, :username => friend_user.username, :fb_uid => auth.uid, :event_accepted => event_user.accept}           
+            friend_json = {id: friend_user.id, :name => friend_user.name, :username => friend_user.username, :fb_uid => auth.uid, :event_accepted => event_user.accept, :confirmed => true}           
             event_users << friend_json              
           end      
         end
@@ -320,7 +320,7 @@ class Api::V1::EventsController < ApplicationController
             friends_map.each do |k,array|
               if friend_user.id != k  
                 event_user = EventUser.where("event_id = ? AND user_id = ?", event.id, friend_user.id).limit(1).first              
-                friend_json = {id: friend_user.id, :name => friend_user.name, :username => friend_user.username, :fb_uid => auth.uid, :event_accepted => event_user.accept}           
+                friend_json = {id: friend_user.id, :name => friend_user.name, :username => friend_user.username, :fb_uid => auth.uid, :event_accepted => event_user.accept, :confirmed => true}           
                 friends_map[k] << friend_json
               end              
             end
@@ -418,7 +418,7 @@ class Api::V1::EventsController < ApplicationController
               if friend_user.id != @user.id    
                 auth = Authorization.find_by_user_id_and_provider(friend_user.id, "facebook")
                 friend_user.fb_uid = auth.uid
-                friend_json = {id: friend_user.id, :name => friend_user.name, :username => friend_user.username, :fb_uid => auth.uid, :event_accepted => event_user.accept}           
+                friend_json = {id: friend_user.id, :name => friend_user.name, :username => friend_user.username, :fb_uid => auth.uid, :event_accepted => event_user.accept, :confirmed => true}           
                 event_users << friend_json              
               end      
             end 
@@ -515,7 +515,7 @@ class Api::V1::EventsController < ApplicationController
                     friends_map.each do |k,array|
                       if friend_user.id != k  
                         event_user = EventUser.where("event_id = ? AND user_id = ?", event.id, friend_user.id).limit(1).first              
-                        friend_json = {id: friend_user.id, :name => friend_user.name, :username => friend_user.username, :fb_uid => auth.uid, :event_accepted => event_user.accept}           
+                        friend_json = {id: friend_user.id, :name => friend_user.name, :username => friend_user.username, :fb_uid => auth.uid, :event_accepted => event_user.accept, :confirmed => true}           
                         friends_map[k] << friend_json
                       end              
                     end
@@ -560,7 +560,7 @@ class Api::V1::EventsController < ApplicationController
                     friends_map.each do |k,array|
                       if friend_user.id != k  
                         event_user = EventUser.where("event_id = ? AND user_id = ?", event.id, friend_user.id).limit(1).first              
-                        friend_json = {id: friend_user.id, :name => friend_user.name, :username => friend_user.username, :fb_uid => auth.uid, :event_accepted => event_user.accept}           
+                        friend_json = {id: friend_user.id, :name => friend_user.name, :username => friend_user.username, :fb_uid => auth.uid, :event_accepted => event_user.accept, :confirmed => true}           
                         friends_map[k] << friend_json
                       end              
                     end
@@ -602,7 +602,7 @@ class Api::V1::EventsController < ApplicationController
                   friends_map.each do |k,array|
                     if friend_user.id != k  
                       event_user = EventUser.where("event_id = ? AND user_id = ?", event.id, friend_user.id).limit(1).first              
-                      friend_json = {id: friend_user.id, :name => friend_user.name, :username => friend_user.username, :fb_uid => auth.uid, :event_accepted => event_user.accept}           
+                      friend_json = {id: friend_user.id, :name => friend_user.name, :username => friend_user.username, :fb_uid => auth.uid, :event_accepted => event_user.accept, :confirmed => true}           
                       friends_map[k] << friend_json
                     end              
                   end
@@ -702,7 +702,7 @@ class Api::V1::EventsController < ApplicationController
             if friend_user.id != @user.id    
               auth = Authorization.find_by_user_id_and_provider(friend_user.id, "facebook")
               friend_user.fb_uid = auth.uid
-              friend_json = {id: friend_user.id, :name => friend_user.name, :username => friend_user.username, :fb_uid => auth.uid, :event_accepted => event_user.accept}           
+              friend_json = {id: friend_user.id, :name => friend_user.name, :username => friend_user.username, :fb_uid => auth.uid, :event_accepted => event_user.accept, :confirmed => true}           
               event_users << friend_json              
             end      
           end 
@@ -905,7 +905,7 @@ class Api::V1::EventsController < ApplicationController
         friends_map.each do |k,array|
           if friend_user.id != k  
             event_user = EventUser.where("event_id = ? AND user_id = ?", event.id, friend_user.id).limit(1).first              
-            friend_json = {id: friend_user.id, :name => friend_user.name, :username => friend_user.username, :fb_uid => auth.uid, :event_accepted => event_user.accept}           
+            friend_json = {id: friend_user.id, :name => friend_user.name, :username => friend_user.username, :fb_uid => auth.uid, :event_accepted => event_user.accept, :confirmed => true}           
             friends_map[k] << friend_json
           end              
         end

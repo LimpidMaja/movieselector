@@ -11,7 +11,12 @@ Movieselector::Application.routes.draw do
           post 'knockout_vote', :as => :knockout_vote_event 
         end
       end
-      resources :friends 
+      resources :friends do
+        member do
+          post 'send_friend_request', :as => :send_friend_request 
+          post 'confirm_friend_request', :as => :confirm_friend_request 
+        end
+      end
       get "/movies/autocomplete", :to => "movies#autocomplete", :as => :autocomplete_movies
       resources :movies
       #devise_scope :user do
