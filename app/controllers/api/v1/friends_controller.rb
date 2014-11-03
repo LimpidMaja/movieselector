@@ -16,7 +16,8 @@ class Api::V1::FriendsController < ApplicationController
     if token_and_options(request)
       access_key = AccessKey.find_by_access_token(token_and_options(request))
       @user = User.find_by_id(access_key.user_id)
-            
+ 
+=begin            
       @users = User.where('id not in (?)',@user.id)
       list = @users.map do |friend_user|
         if @user.id != friend_user.id
@@ -31,6 +32,7 @@ class Api::V1::FriendsController < ApplicationController
          }
          end
       end
+=end      
               
       @friends = @user.friends
             
@@ -48,7 +50,7 @@ class Api::V1::FriendsController < ApplicationController
         end
       end
       
-      list = list + list_friends          
+      list = list_friends          
       
       @friend_requests = Friend.where(:friend_id => @user.id, :friend_confirm => false)
       list_request = @friend_requests.map do |friend|
