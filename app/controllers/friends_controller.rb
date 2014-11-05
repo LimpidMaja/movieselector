@@ -51,6 +51,8 @@ class FriendsController < ApplicationController
       begin
         friends_fb = @graph.get_connections("me", "friends")
         #p "\n FRIENDS: " + friends_fb.to_yaml    
+        #iris 10152845525454851
+        #primoz 694717864
         begin        
          #logger.info "\n @next_page " + videos.to_yaml
          if !friends_fb.nil?        
