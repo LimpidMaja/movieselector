@@ -13,18 +13,21 @@ class Api::V1::EventsController < ApplicationController
       @user = User.find_by_id(access_key.user_id)     
       p "@user: " + @user.to_yaml
       
+      
       @events = []
       @past_events = []
       user_events = @user.events.includes([:movies, :users])
+      
       user_events.each do |event| 
         if event.event_date >= Date.today
-          @events << event
+          @events << event           
                     
           event_users = []
           all_confirmed = true
           all_voted = true
           votes_count = 0
           votes_user_count = 0
+          all_declined = true
           
           event.users.each do |friend_user| 
             event_user = nil
@@ -35,24 +38,56 @@ class Api::V1::EventsController < ApplicationController
               if friend_user.id == @user.id && event_user.waiting?
                 p "ME - NOT ACCEPT!"
                 all_confirmed = false
-                event.event_status = "confirm"                
+                event.event_status = "confirm"                  
+              elsif friend_user.id == @user.id && event_user.declined?     
+                event.event_status = "declined"            
               elsif event_user.waiting?
+                all_declined = false
                 all_confirmed = false
+              elsif event_user.accepted?
+                all_declined = false
               end
+            else
+              all_declined = false  
             end
             
             if event.rating_phase == "starting"
               if event_user.nil?
                 event_user = EventUser.where("event_id = ? AND user_id = ?", event.id, friend_user.id).limit(1).first              
               end    
-              if event_user.accepted? && event_user.num_votes != event.num_votes_per_user
-                if friend_user.id == @user.id 
-                  event.event_status = "vote"                    
-                end              
-                all_voted = false
-              elsif event_user.accepted? && event_user.num_votes == event.num_votes_per_user                
-                votes_user_count = votes_user_count + 1
-                votes_count = votes_count + event_user.num_votes
+              if event.one_to_five?
+                if event_user.accepted? && event_user.num_votes != event.num_votes_per_user
+                  if friend_user.id == @user.id 
+                    event.event_status = "vote"                    
+                  end              
+                  all_voted = false
+                elsif event_user.accepted? && event_user.num_votes == event.num_votes_per_user                
+                  votes_user_count = votes_user_count + 1
+                  votes_count = votes_count + event_user.num_votes
+                end
+              elsif event.one_to_ten?
+                if event_user.accepted?
+                  event_user_votes = EventUserVote.where("event_id = ? AND user_id = ?", event.id, friend_user.id)
+                  if !event_user_votes.nil?
+                    score = 0
+                    event_user_votes.each do |vote|
+                      score = score + vote.score
+                    end
+                    if score < 10
+                      if friend_user.id == @user.id 
+                        event.event_status = "vote"                    
+                      end                   
+                      all_voted = false
+                    else
+                      votes_user_count = votes_user_count + 1
+                    end
+                  else 
+                    if friend_user.id == @user.id 
+                      event.event_status = "vote"                    
+                    end                   
+                    all_voted = false
+                  end  
+                end 
               end
             end
                     
@@ -68,9 +103,11 @@ class Api::V1::EventsController < ApplicationController
           event.friends = event_users
                     
           voting_percent = (votes_user_count * 100) / event.users.count 
-          votes_percent = votes_count * 100 / (event.users.count * event.num_votes_per_user) 
           print "PERCENT: " + voting_percent.to_s
-          print "VOTES PERCENT: " + votes_percent.to_s
+          if event.one_to_five?
+            votes_percent = votes_count * 100 / (event.users.count * event.num_votes_per_user) 
+            print "VOTES PERCENT: " + votes_percent.to_s
+          end
             
           if event.finished == true
             event_movie = EventMovie.where("event_id = ? AND winner = true", event.id).limit(1).first
@@ -78,14 +115,16 @@ class Api::V1::EventsController < ApplicationController
             event.event_status = "winner" 
             p "WINNER: " + movie.to_yaml + "\n"      
             event.winner_movie = event_movie.movie_id
-          elsif (all_confirmed == false && event.event_status != "confirm") || (all_voted == false && event.event_status != "vote")
+          elsif all_declined == true            
+            event.event_status = "failed"  
+          elsif (all_confirmed == false && event.event_status != "confirm" && event.event_status != "declined") || (all_voted == false && event.event_status != "vote")
             p "WAITING"
             event.event_status = "waiting_others"   
-          elsif all_voted == true && event.minimum_voting_percent <= voting_percent && event.minimum_voting_percent <= votes_percent
-            event.event_status = "winner"                     
+          elsif all_voted == true && event.minimum_voting_percent <= voting_percent && ((event.one_to_five? && event.minimum_voting_percent <= votes_percent) || event.one_to_ten?)
+            event.event_status = "waiting_others"                     
           end
           
-          if  event.finished == false && event.rating_phase == "knockout_match"
+          if event.finished == false && event.rating_phase == "knockout_match"
             knockouts =  EventKnockout.where("event_id = ? AND round = ? AND finished = false", event.id, event.knockout_phase).order('id ASC')
             print "knockouts: " + knockouts.to_yaml 
             @knockout_match = []
@@ -97,13 +136,17 @@ class Api::V1::EventsController < ApplicationController
                 event.event_status = "knockout_choose"   
                 break
               end                      
-            end
+            end            
                         
             if event.knockout_matches.nil?
               event.event_status = "waiting_others"   
-            end           
-          end
-                   
+            end                      
+          end 
+          
+          my_event_user = EventUser.where("event_id = ? AND user_id = ?", event.id, @user.id).limit(1).first              
+          if my_event_user.declined?                
+            event.event_status = "declined"      
+          end                   
         else
           @past_events << event 
         end
@@ -146,7 +189,6 @@ class Api::V1::EventsController < ApplicationController
       @event.user_id = @user.id
       @event.rating_phase = "wait_users"
       @event.rating_system = "voting"
-      @event.voting_range = "one_to_five"
       @event.minimum_voting_percent = 100
       @event.finished = false    
       
@@ -365,12 +407,37 @@ class Api::V1::EventsController < ApplicationController
       
       p "EVENT: " + event.to_yaml + "\n"
       p " RATED: " + params[:rated_movies].to_yaml
-      
-      if event.rating_phase == "starting" && !params[:rated_movies].nil? && params[:rated_movies].count == event.num_votes_per_user
+            
+      if event.one_to_ten?    
+        sum = 0
+        params[:rated_movies].each { |vote| sum += vote.score }
+        puts "SUM SCORE:"+sum.to_s
+      end
+         
+      if event.rating_phase == "starting" && !params[:rated_movies].nil? && ((event.one_to_five? && params[:rated_movies].count == event.num_votes_per_user) || (event.one_to_ten? && 10 == sum)) 
         event_user = EventUser.where("event_id = ? AND user_id = ?", event.id, @user.id).limit(1).first              
                
         if !event_user.nil? && event_user.accepted?
-          if event_user.num_votes < event.num_votes_per_user
+          
+          if event.one_to_ten?
+            voted = true
+            event_user_votes = EventUserVote.where("event_id = ? AND user_id = ?", event.id, @user.id)
+            if !event_user_votes.nil?
+              score = 0
+              event_user_votes.each do |vote|
+                score = score + vote.score
+              end
+              if score < 10                      
+                voted = false
+              else
+                voted = true
+              end
+            else                  
+              voted = false
+            end   
+          end
+            
+          if (event.one_to_five? && event_user.num_votes < event.num_votes_per_user) || (event.one_to_ten? && voted == false)
             begin
               params[:rated_movies].each do |vote|
                 p "MOVIED IF: " + vote.id.to_s
@@ -406,13 +473,34 @@ class Api::V1::EventsController < ApplicationController
             event.users.each do |friend_user|     
           
               event_user = EventUser.where("event_id = ? AND user_id = ?", event.id, friend_user.id).limit(1).first              
-              if event_user.accepted? && event_user.num_votes != event.num_votes_per_user
-                all_voted = false         
-                friends_map[friend_user.id] = []
-              elsif event_user.accepted? && event_user.num_votes == event.num_votes_per_user
-                votes_user_count = votes_user_count + 1
-                votes_count = votes_count + event_user.num_votes         
-                friends_map[friend_user.id] = []
+              
+              if event.one_to_five?
+                if event_user.accepted? && event_user.num_votes != event.num_votes_per_user
+                  all_voted = false         
+                  friends_map[friend_user.id] = []
+                elsif event_user.accepted? && event_user.num_votes == event.num_votes_per_user
+                  votes_user_count = votes_user_count + 1
+                  votes_count = votes_count + event_user.num_votes         
+                  friends_map[friend_user.id] = []
+                end                
+              elsif event.one_to_ten?
+                if event_user.accepted?
+                  friends_map[friend_user.id] = []
+                  event_user_votes = EventUserVote.where("event_id = ? AND user_id = ?", event.id, friend_user.id)
+                  if !event_user_votes.nil?
+                    score = 0
+                    event_user_votes.each do |vote|
+                      score = score + vote.score
+                    end
+                    if score < 10                                        
+                      all_voted = false
+                    else
+                      votes_user_count = votes_user_count + 1
+                    end
+                  else                                     
+                    all_voted = false
+                  end  
+                end 
               end
                                                 
               if friend_user.id != @user.id    
@@ -425,11 +513,13 @@ class Api::V1::EventsController < ApplicationController
             event.friends = event_users
                         
             voting_percent = (votes_user_count * 100) / event.users.count 
-            votes_percent = votes_count * 100 / (event.users.count * event.num_votes_per_user) 
             print "PERCENT: " + voting_percent.to_s
-            print "VOTES PERCENT: " + votes_percent.to_s
+            if event.one_to_five?
+              votes_percent = votes_count * 100 / (event.users.count * event.num_votes_per_user) 
+              print "VOTES PERCENT: " + votes_percent.to_s
+            end
               
-            if event.minimum_voting_percent <= voting_percent && event.minimum_voting_percent <= votes_percent
+            if event.minimum_voting_percent <= voting_percent && ((event.one_to_five? && event.minimum_voting_percent <= votes_percent) || event.one_to_ten?)
               print "VOTING ENDED!" 
               highest_score = 0
               highest_score_count = 0

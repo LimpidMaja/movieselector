@@ -83,7 +83,7 @@ class Api::V1::FriendsController < ApplicationController
                 if !friend.nil?
                   auth = Authorization.find_by_uid(friend.id)                
                   if auth
-                    if !list.members.map(&:id).include? auth.user.id
+                    if !list.map(&:id).include? auth.user.id
                       logger.info "\n FRIEND: " + friend.name.to_yaml 
                       @friends_fb << auth.user
                     end
