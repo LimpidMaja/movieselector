@@ -50,14 +50,14 @@ class FriendsController < ApplicationController
     if !@graph.nil?
       begin
         friends_fb = @graph.get_connections("me", "friends")
+        #p "\n FRIENDS: " + friends_fb.to_yaml    
         begin        
          #logger.info "\n @next_page " + videos.to_yaml
-         if !friends_fb.nil?     
-            logger.info "\n FRIENDS: " + friends_fb.to_yaml       
+         if !friends_fb.nil?        
             count = friends_fb.count
             friends_fb.each do |friend|    
               if !friend.nil?
-                logger.info "\n FRIEND: " + friend.name.to_yaml    
+                #logger.info "\n FRIEND: " + friend.name.to_yaml    
                 fb_friend = Friend.new
                 fb_friend.name = friend.name
                 fb_friend.facebook_id = friend.id
@@ -76,7 +76,7 @@ class FriendsController < ApplicationController
         logger.error "\n FACEBOOK FRIENDS RESULT ERROR: " + e.to_s + "\n"
       end
     end
-    puts @friends.to_yaml
+    #puts @friends.to_yaml
     render :index
   end
 
