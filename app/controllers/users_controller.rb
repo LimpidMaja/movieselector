@@ -36,7 +36,7 @@ class UsersController < ApplicationController
     
     @user = header(@user)   
     
-    auth = Authorization.find_by_uid(@user.id)         
+    auth = Authorization.find_by_user_id(@user.id)         
     puts "USER: " + @user.name.to_s + " FB ID: " + auth.uid.to_s
     if current_user == @user || @user.setting.private == false   
       @movies = Movie.user_movie_latest_watched(@user, current_user)
