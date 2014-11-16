@@ -6,8 +6,38 @@ class Api::V1::FriendsController < ApplicationController
   include ActionController::HttpAuthentication::Token
     
  def autocomplete    
-    print "TEST events" 
-    render json: Movie.search(params[:query], fields: [{title: :word_start}], misspellings: {distance: 2}, limit: 10).map(&:title)
+    if token_and_options(request)
+      access_key = AccessKey.find_by_access_token(token_and_options(request))
+      @user = User.find_by_id(access_key.user_id)
+      
+      p "AUTOCOMPLETE"
+      if params[:term].present? && !params[:term].empty?
+        p "TERM : " +params[:term]
+        @hash = []
+        @friends = User.where("lower(name) LIKE ? OR lower(email) LIKE ? OR lower(username) LIKE ?", "%#{params[:term].downcase}%", "%#{params[:term].downcase}%", "%#{params[:term].downcase}%").limit(20)
+        
+        list = @friends.map do |friend|
+          if friend.id != @user.id
+            auth = Authorization.find_by_user_id_and_provider(friend.id, "facebook")
+            { :id => friend.id,
+              :name => friend.name,
+              :username => friend.username,
+              :facebookUID => auth.uid,
+              :confirmed => false,
+              :request => false
+            }
+          end
+        end
+              
+        list = list.compact         
+        list.to_json
+        respond_with :friends => list      
+      else
+       render json: {:friends => { :info => "Error" }}, :status => 405
+      end   
+    else
+       render json: {:friends => { :info => "Error" }}, :status => 403
+    end   
   end
   
   # GET /friends

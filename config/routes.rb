@@ -11,9 +11,11 @@ Movieselector::Application.routes.draw do
           post 'knockout_vote', :as => :knockout_vote_event
           post 'cancel', :as => :cancel_event  
           post 'start', :as => :start_event  
+          post 'continue', :as => :continue_event  
           post 'time_limit', :as => :increase_time_limit_event  
         end
       end
+      get "/friends/autocomplete", :to => "friends#autocomplete", :as => :autocomplete_friends
       resources :friends do
         member do
           post 'send_friend_request', :as => :send_friend_request 
