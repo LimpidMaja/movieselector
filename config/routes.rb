@@ -22,6 +22,7 @@ Movieselector::Application.routes.draw do
           post 'confirm_friend_request', :as => :confirm_friend_request 
         end
       end
+      get "/movies/search_lists", :to => "movies#search_lists", :as => :search_lists_movies
       get "/movies/autocomplete", :to => "movies#autocomplete", :as => :autocomplete_movies
       resources :movies
       #devise_scope :user do

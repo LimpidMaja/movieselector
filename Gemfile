@@ -32,6 +32,7 @@ gem 'clockwork'
 gem 'hpricot'
 gem 'nokogiri'
 gem 'google_search'
+gem 'google-api-client'
 gem 'gcm'
 #gem 'trakt_api', "0.0.1"
 #gem 'httparty', "0.11.0"
