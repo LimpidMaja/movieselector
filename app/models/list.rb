@@ -2,6 +2,8 @@ class List < ActiveRecord::Base
   has_many :list_movies
   has_many :movies, through: :list_movies
 
+  attr_accessor :url
+  attr_accessor :img
 
   def self.update_trakt_trending
     trakt = Trakt.new
