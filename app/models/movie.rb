@@ -148,7 +148,7 @@ class Movie < ActiveRecord::Base
       trakt.username = @setting.trakt_username
       trakt.password = @setting.trakt_password
       
-      #begin
+      begin
         trakt_result = trakt.account.movies_all(trakt.username, 'min')         
         if trakt_result
           id_map = []
@@ -174,9 +174,9 @@ class Movie < ActiveRecord::Base
             end
           end
         end
-      #rescue => e
+      rescue => e
         logger.error "\n TRAKT COLLECTED RESULT ERROR: " + e.to_s + "\n"
-      #end
+      end
 =begin     
       begin
         trakt_wathed_result = trakt.activity.watched(trakt.username)
@@ -575,15 +575,19 @@ class Movie < ActiveRecord::Base
           if my_movie.year.nil? || my_movie.year == 0
             my_movie.year = movie['year']
           end
+          logger.info "1" 
           if my_movie.trakt_id.nil? || my_movie.trakt_id.empty?
             my_movie.trakt_id = movie['url']
           end
+          logger.info "2" 
           if my_movie.fanart.nil? || my_movie.fanart.empty?
             my_movie.fanart = movie['images']['fanart']
           end
+          logger.info "3" 
           if my_movie.trailer.nil? || my_movie.trailer.empty?
             my_movie.trailer = movie['trailer']
           end
+          logger.info "4" 
           if my_movie.tagline.nil? || my_movie.tagline.empty?
             my_movie.tagline = movie['tagline']
           end
