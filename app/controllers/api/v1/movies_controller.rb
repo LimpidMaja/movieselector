@@ -27,6 +27,32 @@ class Api::V1::MoviesController < ApplicationController
     end   
   end
   
+  def collection
+    if token_and_options(request)
+      access_key = AccessKey.find_by_access_token(token_and_options(request))
+      @user = User.find_by_id(access_key.user_id)
+      
+      p "Collection"
+      if params[:term].present?
+      else
+      end
+      p "TERM : " +params[:term]
+      #render json: Movie.search(params[:query], fields: [{title: :word_start}], misspellings: {distance: 2}, limit: 10).map(&:title)
+        
+      @hash = []
+      @movies= Movie.select("id, title, year, poster").where("lower(title) LIKE ? OR lower(title) LIKE ?", "#{params[:term].downcase}%", "% #{params[:term].downcase}%").limit(10)
+      @movies.each do |movie|
+        @hash << { "id" => movie.id, "title" => movie.title, "poster" => movie.poster, "year" => movie.year}
+      end
+      print @hash.to_yaml
+    #  render :json => @hash
+      respond_with :movies => @hash
+      
+    else
+      render :events => { :info => "Error" }, :status => 403
+    end   
+  end
+  
   def search_lists
     if token_and_options(request)
       access_key = AccessKey.find_by_access_token(token_and_options(request))
