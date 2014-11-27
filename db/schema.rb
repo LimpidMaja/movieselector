@@ -30,8 +30,6 @@ ActiveRecord::Schema.define(version: 20141030101132) do
     t.string   "slug"
   end
 
-  add_index "actors", ["slug"], name: "slug", unique: true, using: :btree
-
   create_table "authorizations", force: true do |t|
     t.string   "provider"
     t.string   "uid"
@@ -49,8 +47,6 @@ ActiveRecord::Schema.define(version: 20141030101132) do
     t.string   "slug"
   end
 
-  add_index "companies", ["slug"], name: "slug", unique: true, using: :btree
-
   create_table "countries", force: true do |t|
     t.string   "name"
     t.datetime "created_at"
@@ -59,7 +55,6 @@ ActiveRecord::Schema.define(version: 20141030101132) do
   end
 
   add_index "countries", ["name"], name: "index_countries_on_name", unique: true, using: :btree
-  add_index "countries", ["slug"], name: "slug", unique: true, using: :btree
 
   create_table "directors", force: true do |t|
     t.string   "name"
@@ -68,8 +63,6 @@ ActiveRecord::Schema.define(version: 20141030101132) do
     t.string   "image"
     t.string   "slug"
   end
-
-  add_index "directors", ["slug"], name: "slug", unique: true, using: :btree
 
   create_table "event_knockouts", force: true do |t|
     t.integer "movie_id_1"
@@ -119,16 +112,16 @@ ActiveRecord::Schema.define(version: 20141030101132) do
     t.boolean  "finished"
     t.boolean  "users_can_add_movies"
     t.integer  "num_add_movies_by_user"
-    t.integer  "rating_system",          default: 0
     t.integer  "num_votes_per_user"
-    t.integer  "voting_range",           default: 0
     t.boolean  "tie_knockout"
-    t.integer  "knockout_rounds",        default: 5
+    t.integer  "knockout_rounds"
     t.integer  "knockout_time_limit"
     t.boolean  "wait_time_limit"
     t.datetime "created_at"
     t.datetime "updated_at"
     t.integer  "rating_phase",           default: 0
+    t.integer  "rating_system"
+    t.integer  "voting_range"
     t.integer  "knockout_phase",         default: 0
   end
 
@@ -149,7 +142,6 @@ ActiveRecord::Schema.define(version: 20141030101132) do
   end
 
   add_index "genres", ["name"], name: "index_genres_on_name", unique: true, using: :btree
-  add_index "genres", ["slug"], name: "slug", unique: true, using: :btree
 
   create_table "keywords", force: true do |t|
     t.string   "name"
@@ -159,7 +151,6 @@ ActiveRecord::Schema.define(version: 20141030101132) do
   end
 
   add_index "keywords", ["name"], name: "index_keywords_on_name", unique: true, using: :btree
-  add_index "keywords", ["slug"], name: "slug", unique: true, using: :btree
 
   create_table "knockout_users", force: true do |t|
     t.integer "user_id"
@@ -175,7 +166,6 @@ ActiveRecord::Schema.define(version: 20141030101132) do
   end
 
   add_index "languages", ["name"], name: "index_languages_on_name", unique: true, using: :btree
-  add_index "languages", ["slug"], name: "slug", unique: true, using: :btree
 
   create_table "list_movies", force: true do |t|
     t.integer  "list_id"
@@ -189,26 +179,24 @@ ActiveRecord::Schema.define(version: 20141030101132) do
     t.integer  "user_id"
     t.string   "name"
     t.text     "description"
-    t.string   "privacy",      default: "private"
-    t.boolean  "allow_edit",   default: false
-    t.string   "edit_privacy", default: "private"
-    t.float    "rating",       default: 0.0
-    t.integer  "votes_count",  default: 0
+    t.string   "privacy"
+    t.boolean  "allow_edit"
+    t.string   "edit_privacy"
+    t.float    "rating"
+    t.integer  "votes_count"
     t.datetime "created_at"
     t.datetime "updated_at"
-    t.boolean  "watchlist",    default: false,     null: false
+    t.boolean  "watchlist"
     t.string   "list_type"
   end
 
   create_table "movie_actors", force: true do |t|
     t.integer  "movie_id"
     t.integer  "actor_id"
-    t.string   "role",       limit: 400
+    t.string   "role"
     t.datetime "created_at"
     t.datetime "updated_at"
   end
-
-  add_index "movie_actors", ["movie_id", "actor_id", "role"], name: "movie_id", unique: true, length: {"movie_id"=>nil, "actor_id"=>nil, "role"=>255}, using: :btree
 
   create_table "movie_writers", force: true do |t|
     t.integer  "movie_id"
@@ -218,8 +206,6 @@ ActiveRecord::Schema.define(version: 20141030101132) do
     t.datetime "updated_at"
   end
 
-  add_index "movie_writers", ["movie_id", "writer_id", "role"], name: "movie_id", unique: true, using: :btree
-
   create_table "movies", force: true do |t|
     t.string   "imdb_id"
     t.string   "tmdb_id"
@@ -228,7 +214,7 @@ ActiveRecord::Schema.define(version: 20141030101132) do
     t.integer  "year"
     t.string   "poster"
     t.float    "imdb_rating"
-    t.integer  "imdb_num_votes", default: 0,    null: false
+    t.integer  "imdb_num_votes"
     t.text     "plot"
     t.integer  "runtime"
     t.text     "tagline"
@@ -242,55 +228,40 @@ ActiveRecord::Schema.define(version: 20141030101132) do
     t.string   "revenue"
     t.string   "status"
     t.string   "awards"
-    t.boolean  "missing_data",   default: true
+    t.boolean  "missing_data"
     t.date     "release_date"
     t.string   "slug"
   end
-
-  add_index "movies", ["imdb_id"], name: "imdb_id", unique: true, using: :btree
-  add_index "movies", ["slug"], name: "slug", unique: true, using: :btree
 
   create_table "movies_companies", force: true do |t|
     t.integer "movie_id"
     t.integer "company_id"
   end
 
-  add_index "movies_companies", ["movie_id", "company_id"], name: "movie_id", unique: true, using: :btree
-
   create_table "movies_countries", force: true do |t|
     t.integer "movie_id"
     t.integer "country_id"
   end
-
-  add_index "movies_countries", ["movie_id", "country_id"], name: "movie_id", unique: true, using: :btree
 
   create_table "movies_directors", force: true do |t|
     t.integer "movie_id"
     t.integer "director_id"
   end
 
-  add_index "movies_directors", ["movie_id", "director_id"], name: "movie_id", unique: true, using: :btree
-
   create_table "movies_genres", force: true do |t|
     t.integer "movie_id"
     t.integer "genre_id"
   end
-
-  add_index "movies_genres", ["movie_id", "genre_id"], name: "movie_id", unique: true, using: :btree
 
   create_table "movies_keywords", force: true do |t|
     t.integer "movie_id"
     t.integer "keyword_id"
   end
 
-  add_index "movies_keywords", ["movie_id", "keyword_id"], name: "movie_id", unique: true, using: :btree
-
   create_table "movies_languages", force: true do |t|
     t.integer "movie_id"
     t.integer "language_id"
   end
-
-  add_index "movies_languages", ["movie_id", "language_id"], name: "movie_id", unique: true, using: :btree
 
   create_table "searchjoy_searches", force: true do |t|
     t.string   "search_type"
@@ -336,15 +307,13 @@ ActiveRecord::Schema.define(version: 20141030101132) do
   create_table "user_movies", force: true do |t|
     t.integer  "user_id"
     t.integer  "movie_id"
-    t.boolean  "watched",      default: false, null: false
+    t.boolean  "watched"
     t.datetime "date_watched"
-    t.boolean  "collection",   default: false, null: false
+    t.boolean  "collection"
     t.datetime "created_at"
     t.datetime "updated_at"
-    t.boolean  "watchlist",    default: false
+    t.boolean  "watchlist"
   end
-
-  add_index "user_movies", ["user_id", "movie_id"], name: "user_id", unique: true, using: :btree
 
   create_table "users", force: true do |t|
     t.string   "name"
@@ -354,9 +323,6 @@ ActiveRecord::Schema.define(version: 20141030101132) do
     t.string   "username"
   end
 
-  add_index "users", ["email"], name: "sqlite_autoindex_users_1", unique: true, using: :btree
-  add_index "users", ["username"], name: "sqlite_autoindex_users_2", unique: true, using: :btree
-
   create_table "writers", force: true do |t|
     t.string   "name"
     t.datetime "created_at"
@@ -364,7 +330,5 @@ ActiveRecord::Schema.define(version: 20141030101132) do
     t.string   "image"
     t.string   "slug"
   end
-
-  add_index "writers", ["slug"], name: "slug", unique: true, using: :btree
 
 end

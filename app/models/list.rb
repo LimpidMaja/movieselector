@@ -69,6 +69,7 @@ class List < ActiveRecord::Base
   end
   
   def self.update_imdb_top_250
+    puts "UPDATE LIST TOP 250"
     trakt = Trakt.new
     trakt.apikey = Rails.application.secrets.trakt_API
     trakt_result = trakt.account.list('mmounirou', 'imdb-best-250-movies')
