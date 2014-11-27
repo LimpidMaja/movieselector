@@ -80,3 +80,5 @@ pickle-email-*.html
 .env
 .powenv
 
+
+config/database.yml
