@@ -24,6 +24,7 @@ Movieselector::Application.routes.draw do
       end
       get "/movies/search_lists", :to => "movies#search_lists", :as => :search_lists_movies
       get "/movies/autocomplete", :to => "movies#autocomplete", :as => :autocomplete_movies
+      get "/movies/collection", :to => "movies#collection", :as => :collection_movies
       resources :movies
       #devise_scope :user do
        # match '/sessions' => 'sessions#create', :via => :post

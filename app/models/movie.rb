@@ -428,7 +428,6 @@ class Movie < ActiveRecord::Base
           end
         end
                 
-        logger.info "GET COUNTRY"
         tmdb.production_countries.each do |country|
           my_country = Country.find_by_name(country.name)
           if !my_country
@@ -439,7 +438,6 @@ class Movie < ActiveRecord::Base
           my_movie.countries << my_country unless !my_movie.countries.find{|item| item[:name] == my_country.name}.nil?
         end
 
-        logger.info "GET GENRE"
         tmdb.genres.each do |genre|
           my_genre = Genre.find_by_name(genre.name)
           if !my_genre
@@ -450,7 +448,6 @@ class Movie < ActiveRecord::Base
           my_movie.genres << my_genre unless !my_movie.genres.find{|item| item[:name] == my_genre.name}.nil?
         end
 
-        logger.info "GET LANGUAGE"
         tmdb.spoken_languages.each do |language|
           my_language = Language.find_by_name(language.iso_639_1)
           if !my_language
@@ -461,7 +458,6 @@ class Movie < ActiveRecord::Base
           my_movie.languages << my_language unless !my_movie.languages.find{|item| item[:name] == my_language.name}.nil?
         end
 
-        logger.info "GET COMPANY"
         tmdb.production_companies.each do |company|
           my_company = Company.find_by_name(company['name'])
           if !my_company
@@ -472,7 +468,6 @@ class Movie < ActiveRecord::Base
           my_movie.companies << my_company unless !my_movie.companies.find{|item| item[:name] == my_company.name}.nil?
         end
         
-        logger.info "GET KEYWORDS"
         keywords = Tmdb::Movie.keywords(my_movie.tmdb_id)
         begin
           keywords.keywords.each do |keyword|
@@ -489,7 +484,6 @@ class Movie < ActiveRecord::Base
           my_movie.missing_data = true
         end
         
-        logger.info "GET TRAILERS"
         trailers = Tmdb::Movie.trailers(my_movie.tmdb_id)
         begin
           trailers.youtube.each do |trailer|
@@ -504,7 +498,6 @@ class Movie < ActiveRecord::Base
           my_movie.missing_data = true
         end
              
-        logger.info "GET CREDITS" 
         credits = Tmdb::Movie.credits(my_movie.tmdb_id)
         begin            
           credits.cast.each do |actor|
@@ -567,32 +560,28 @@ class Movie < ActiveRecord::Base
         rescue => e
           logger.error "CREW ERROR: " + e.to_s + "\n"
           my_movie.missing_data = true
-        end
-        
-        logger.info "CHECK TRAKT" 
+        end        
+       
         # check Trakt
         if movie.present?
-          if my_movie.year.nil? || my_movie.year == 0
-            my_movie.year = movie['year']
-          end
-          logger.info "1" 
-          if my_movie.trakt_id.nil? || my_movie.trakt_id.empty?
-            my_movie.trakt_id = movie['url']
-          end
-          logger.info "2" 
-          if my_movie.fanart.nil? || my_movie.fanart.empty?
-            if !movie['images'].nil? && !movie['images']['fanart'].nil?
-              my_movie.fanart = movie['images']['fanart']
+          begin        
+            if my_movie.year.nil? || my_movie.year == 0
+              my_movie.year = movie['year']
             end
-          end
-          logger.info "3" 
-          if my_movie.trailer.nil? || my_movie.trailer.empty?
-            my_movie.trailer = movie['trailer']
-          end
-          logger.info "4" 
-          if my_movie.tagline.nil? || my_movie.tagline.empty?
-            my_movie.tagline = movie['tagline']
-          end
+            if my_movie.trakt_id.nil? || my_movie.trakt_id.empty?
+              my_movie.trakt_id = movie['url']
+            end
+            if my_movie.fanart.nil? || my_movie.fanart.empty?
+              if !movie['images'].nil? && !movie['images']['fanart'].nil?
+                my_movie.fanart = movie['images']['fanart']
+              end
+            end          
+            if my_movie.trailer.nil? || my_movie.trailer.empty?
+              my_movie.trailer = movie['trailer']
+            end
+            if my_movie.tagline.nil? || my_movie.tagline.empty?
+              my_movie.tagline = movie['tagline']
+            end
         #else
         #  begin
         #    trakt = Trakt.new
@@ -611,13 +600,12 @@ class Movie < ActiveRecord::Base
         #        my_movie.tagline = trakt_result.tagline
         #      end
         #    end
-        #  rescue => e
-        #    logger.error "TRAKT ERROR: " + e.to_s + "\n"
-        #    my_movie.missing_data = true
-        #  end
+          rescue => e
+            logger.error "TRAKT ERROR: " + e.to_s + "\n"
+           # my_movie.missing_data = true
+          end
         end
         
-        logger.info "CHECK OMDB" 
         # Check OMDB
         if !my_movie.imdb_id.nil? && !my_movie.imdb_id.empty?
           begin  
@@ -658,8 +646,7 @@ class Movie < ActiveRecord::Base
         else
           my_movie.missing_data = true
         end          
-        
-        logger.info "START SAVE"   
+          
         # save movie  
         logger.info "MY MOVIE: \n"
         logger.info my_movie.to_yaml
