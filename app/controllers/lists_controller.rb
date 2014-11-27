@@ -3,6 +3,7 @@ class ListsController < ApplicationController
   # GET /lists
   # GET /lists.json
   def index
+    #List.update_imdb_top_250
     if params[:user_id]
       authenticate_user!
       correct_user_by_user_id?

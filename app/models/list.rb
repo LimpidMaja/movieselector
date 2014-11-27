@@ -14,8 +14,16 @@ class List < ActiveRecord::Base
       trakt_result.each{|m| tmdb_ids << m.tmdb_id}
       order_hash = {}
       tmdb_ids.each_with_index {|tmdb_id,index | order_hash[tmdb_id]=index}
-       
-      @movies = Movie.where(:tmdb_id => tmdb_ids)
+      @movies = [] 
+      tmdb_ids.each do |tmdb_id|
+         movie = Movie.where(:tmdb_id => tmdb_id).limit(1).first
+         if movie != nil
+           @movies << movie
+         else
+           Movie.add_movie(tmdb_id, nil, nil)
+         end
+      end
+  #    @movies = Movie.where(:tmdb_id => tmdb_ids)
      # @movies = @movies.sort_by { |r| order_hash[r.tmdb_id.to_s] }
       
       trakt_list = List.find_by_name_and_list_type('Trending', 'official')
@@ -71,7 +79,16 @@ class List < ActiveRecord::Base
       order_hash = {}
       tmdb_ids.each_with_index {|tmdb_id,index | order_hash[tmdb_id]=index}
        
-      @movies = Movie.where(:tmdb_id => tmdb_ids)
+      @movies = [] 
+      tmdb_ids.each do |tmdb_id|
+         movie = Movie.where(:tmdb_id => tmdb_id).limit(1).first
+         if movie != nil
+           @movies << movie
+         else
+           Movie.add_movie(tmdb_id, nil, nil)
+         end
+      end
+      #@movies = Movie.where(:tmdb_id => tmdb_ids)
       trakt_list = List.find_by_name_and_list_type('IMDB Top 250', 'official')
       if !trakt_list
         trakt_list = List.new
