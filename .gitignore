@@ -22,7 +22,6 @@ db/*.sqlite3
 /tmp/*
 
 # configuration file introduced in Rails 4.1
-/config/secrets.yml
 
 # various artifacts
 **.war
@@ -32,7 +31,6 @@ db/*.sqlite3
 .redcar/
 .sass-cache
 /config/config.yml
-/config/database.yml
 /coverage.data
 /coverage/
 /db/*.javadb/
@@ -82,6 +80,3 @@ pickle-email-*.html
 .env
 .powenv
 
-config/secrets.yml
-
-config/secrets.yml
