@@ -1,26 +1,22 @@
 class ChangeEvents < ActiveRecord::Migration
-  def up
-    #change_column :events, :rating_system, :integer 
-    #change_column :events, :voting_range, :integer 
+  def up    
+    remove_column :events, :rating_phase, :string    
     add_column   :events, :rating_phase, :integer, default: 0 
     
-    connection.execute(%q{
-      alter table events
-      alter column rating_system
-      type integer using cast(rating_system as integer)
-    })
+    remove_column :events, :rating_system, :string    
+    add_column :events, :rating_system, :integer
     
-    connection.execute(%q{
-      alter table events
-      alter column voting_range
-      type integer using cast(voting_range as integer)
-    })
-      
+    remove_column :events, :voting_range, :string    
+    add_column :events, :voting_range, :integer
+    
   end
   
   def down      
     remove_column :events, :rating_phase, :integer
-    change_column :events, :rating_system, :string
-    change_column :events, :voting_range, :string
+    remove_column :events, :rating_system, :integer
+    remove_column :events, :voting_range, :integer
+    add_column :events, :rating_phase, :string
+    add_column :events, :rating_system, :string
+    add_column :events, :voting_range, :string
   end
 end
