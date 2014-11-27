@@ -581,7 +581,9 @@ class Movie < ActiveRecord::Base
           end
           logger.info "2" 
           if my_movie.fanart.nil? || my_movie.fanart.empty?
-            my_movie.fanart = movie['images']['fanart']
+            if !movie['images'].nil? && !movie['images']['fanart'].nil?
+              my_movie.fanart = movie['images']['fanart']
+            end
           end
           logger.info "3" 
           if my_movie.trailer.nil? || my_movie.trailer.empty?
