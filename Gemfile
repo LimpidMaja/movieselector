@@ -17,7 +17,7 @@ gem 'thin'
 gem 'imdb'
 gem 'omdbapi'
 gem 'awesome_print'
-#gem 'trakt', '0.0.3', :git => "https://github.com/LimpidMaja/trakt"
+gem 'trakt', '0.0.3', :git => "https://github.com/LimpidMaja/trakt"
 gem 'themoviedb'
 gem 'jquery-ui-rails'
 gem 'twitter-typeahead-rails', "0.9.3"
