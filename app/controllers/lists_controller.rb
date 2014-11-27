@@ -5,6 +5,7 @@ class ListsController < ApplicationController
   def index
     #Movie.reindex
     #List.update_imdb_top_250
+    #List.update_trakt_trending
     
     if params[:user_id]
       authenticate_user!
