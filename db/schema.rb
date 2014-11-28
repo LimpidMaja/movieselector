@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20141030101132) do
+ActiveRecord::Schema.define(version: 20141128181505) do
 
   create_table "access_keys", force: true do |t|
     t.string   "access_token"
@@ -313,6 +313,7 @@ ActiveRecord::Schema.define(version: 20141030101132) do
     t.datetime "created_at"
     t.datetime "updated_at"
     t.boolean  "watchlist"
+    t.datetime "date_collected"
   end
 
   create_table "users", force: true do |t|

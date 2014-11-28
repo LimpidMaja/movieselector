@@ -152,7 +152,7 @@ class Movie < ActiveRecord::Base
         trakt_result = trakt.account.movies_all(trakt.username, 'min')         
         if trakt_result
           id_map = []
-          trakt_result.each do |movie|
+          trakt_result.each do |movie|           
             tmdb_id = movie.tmdb_id
             my_movie = add_movie(tmdb_id, movie, nil)
             if my_movie
@@ -165,7 +165,30 @@ class Movie < ActiveRecord::Base
               update_user_movie(user, my_movie, watched, movie.in_collection, nil)
             end 
           end
-          #UserMovie.where.not(movie_id: id_map).where(user_id: user.id).update_all(:collection => false)
+          
+          #add date added
+          trakt_collection_result = trakt.account.movies_collection(trakt.username, 'min')         
+          if trakt_collection_result
+            require 'date'
+            trakt_collection_result.each do |movie|
+              tmdb_id = movie.tmdb_id
+              my_movie = Movie.find_by_tmdb_id(tmdb_id)            
+              if my_movie                
+                user_movie = UserMovie.where(user_id: user.id, movie_id: my_movie.id).limit(1).first
+                if user_movie
+                  puts user_movie.to_yaml 
+                  puts "MOVIE: "+ my_movie.title + " COLLECTED:" +  movie.collected.to_s    + " date: " + DateTime.strptime(movie.collected.to_s,'%s').to_s              
+                  user_movie.date_collected = Time.now
+                  puts " GGG"
+                  user_movie.date_collected = DateTime.strptime(movie.collected.to_s,'%s')
+                  puts user_movie.date_collected.to_s
+                  user_movie.save
+                end
+              end 
+            end
+          end        
+          #end add date added
+          
           user_movies = UserMovie.where(user_id: user.id, collection: false, watched: false, watchlist: false)
           user_movies.each do |user_movie|
             if !user_movie.watched

@@ -34,20 +34,20 @@ class Api::V1::MoviesController < ApplicationController
       
       p "Collection"
       if params[:term].present?
+        p "TERM : " +params[:term]
+        @user_movies = UserMovie.where("user_id = ? AND collection = true", @user.id)
+        @movies = Movie.select("id, title, year, poster, release_date, imdb_rating").where("id IN (?) AND (lower(title) LIKE ? OR lower(title) LIKE ?)", @user_movies.map(&:movie_id), "#{params[:term].downcase}%", "% #{params[:term].downcase}%").limit(10)     
       else
+        @user_movies = UserMovie.where("user_id = ? AND collection = true", @user.id)
+        @movies = Movie.select("id, title, year, poster, release_date, imdb_rating").where("id IN (?)", @user_movies.map(&:movie_id)).order("title")
       end
-      p "TERM : " +params[:term]
-      #render json: Movie.search(params[:query], fields: [{title: :word_start}], misspellings: {distance: 2}, limit: 10).map(&:title)
         
       @hash = []
-      @movies= Movie.select("id, title, year, poster").where("lower(title) LIKE ? OR lower(title) LIKE ?", "#{params[:term].downcase}%", "% #{params[:term].downcase}%").limit(10)
       @movies.each do |movie|
-        @hash << { "id" => movie.id, "title" => movie.title, "poster" => movie.poster, "year" => movie.year}
+        @hash << { "id" => movie.id, "title" => movie.title, "poster" => movie.poster, "year" => movie.year, "release_date" => movie.release_date, "imdb_rating" => movie.imdb_rating}
       end
       print @hash.to_yaml
-    #  render :json => @hash
-      respond_with :movies => @hash
-      
+      respond_with :movies => @hash      
     else
       render :events => { :info => "Error" }, :status => 403
     end   
