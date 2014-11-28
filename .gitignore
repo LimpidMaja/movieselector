@@ -83,3 +83,5 @@ pickle-email-*.html
 
 config/database.yml
 
+
+config/secrets.yml
