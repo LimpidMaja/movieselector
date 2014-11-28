@@ -177,9 +177,6 @@ class Movie < ActiveRecord::Base
                 user_movie = UserMovie.where(user_id: user.id, movie_id: my_movie.id).limit(1).first
                 if user_movie
                   puts user_movie.to_yaml 
-                  puts "MOVIE: "+ my_movie.title + " COLLECTED:" +  movie.collected.to_s    + " date: " + DateTime.strptime(movie.collected.to_s,'%s').to_s              
-                  user_movie.date_collected = Time.now
-                  puts " GGG"
                   user_movie.date_collected = DateTime.strptime(movie.collected.to_s,'%s')
                   puts user_movie.date_collected.to_s
                   user_movie.save
