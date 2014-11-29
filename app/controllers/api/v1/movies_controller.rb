@@ -35,17 +35,14 @@ class Api::V1::MoviesController < ApplicationController
       p "Collection"
       if params[:term].present?
         p "TERM : " +params[:term]
-        @user_movies = UserMovie.where("user_id = ? AND collection = true", @user.id)
-        @movies = Movie.select("id, title, year, poster, release_date, imdb_rating").where("id IN (?) AND (lower(title) LIKE ? OR lower(title) LIKE ?)", @user_movies.map(&:movie_id), "#{params[:term].downcase}%", "% #{params[:term].downcase}%").limit(10)     
-      else
-        @user_movies = UserMovie.where("user_id = ? AND collection = true", @user.id)
-        @movies = Movie.select("id, title, year, poster, release_date, imdb_rating").where("id IN (?)", @user_movies.map(&:movie_id)).order("title")
+        @movies = Movie.joins(:user_movies).select("movies.id, movies.title, movies.year, movies.poster, movies.release_date, movies.imdb_rating, user_movies.user_id, user_movies.date_collected").where("user_movies.user_id = ? AND user_movies.collection = true AND (lower(movies.title) LIKE ? OR lower(movies.title) LIKE ?)", @user.id, "#{params[:term].downcase}%", "% #{params[:term].downcase}%").limit(10)
+      else        
+        @movies = Movie.joins(:user_movies).select("movies.id, movies.title, movies.year, movies.poster, movies.release_date, movies.imdb_rating, user_movies.user_id, user_movies.date_collected").where("user_movies.user_id = ? AND user_movies.collection = true", @user.id).order("title")
       end
         
       @hash = []
       @movies.each do |movie|
-        user_movie = UserMovie.where("user_id = ? AND movie_id = ?", @user.id, movie.id).limit(1).first        
-        @hash << { "id" => movie.id, "title" => movie.title, "poster" => movie.poster, "year" => movie.year, "release_date" => movie.release_date.strftime("%Y-%M-%d %H:%m"), "imdb_rating" => movie.imdb_rating, "date_added" => user_movie.date_collected.strftime("%Y-%M-%d %H:%m")}
+        @hash << { "id" => movie.id, "title" => movie.title, "poster" => movie.poster, "year" => movie.year, "release_date" => movie.release_date.strftime("%Y-%M-%d %H:%m"), "imdb_rating" => movie.imdb_rating, "date_added" => movie.date_collected.strftime("%Y-%M-%d %H:%m")}
       end
       print @hash.to_yaml
       respond_with :movies => @hash      
