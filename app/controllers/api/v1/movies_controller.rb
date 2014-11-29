@@ -42,7 +42,7 @@ class Api::V1::MoviesController < ApplicationController
         
       @hash = []
       @movies.each do |movie|
-        @hash << { "id" => movie.id, "title" => movie.title, "poster" => movie.poster, "year" => movie.year, "release_date" => movie.release_date.strftime("%Y-%M-%d %H:%m"), "imdb_rating" => movie.imdb_rating, "date_added" => movie.date_collected.strftime("%Y-%M-%d %H:%m")}
+        @hash << { "id" => movie.id, "title" => movie.title, "poster" => movie.poster, "year" => movie.year, "release_date" => movie.release_date.strftime('%Y-%m-%d %H:%M')  , "imdb_rating" => movie.imdb_rating, "date_added" => movie.date_collected.strftime("%Y-%m-%d %H:%M")}
       end
       print @hash.to_yaml
       respond_with :movies => @hash      
