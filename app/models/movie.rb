@@ -148,8 +148,8 @@ class Movie < ActiveRecord::Base
       trakt.username = @setting.trakt_username
       trakt.password = @setting.trakt_password
       
-      begin
-        trakt_result = trakt.account.movies_all(trakt.username, 'min')         
+      begin  
+        trakt_result = trakt.account.movies_all(trakt.username, 'min')            
         if trakt_result
           id_map = []
           trakt_result.each do |movie|           
@@ -164,27 +164,7 @@ class Movie < ActiveRecord::Base
               end
               update_user_movie(user, my_movie, watched, movie.in_collection, nil)
             end 
-          end
-          
-          #add date added
-          trakt_collection_result = trakt.account.movies_collection(trakt.username, 'min')         
-          if trakt_collection_result
-            require 'date'
-            trakt_collection_result.each do |movie|
-              tmdb_id = movie.tmdb_id
-              my_movie = Movie.find_by_tmdb_id(tmdb_id)            
-              if my_movie                
-                user_movie = UserMovie.where(user_id: user.id, movie_id: my_movie.id).limit(1).first
-                if user_movie
-                  puts user_movie.to_yaml 
-                  user_movie.date_collected = DateTime.strptime(movie.collected.to_s,'%s')
-                  puts user_movie.date_collected.to_s
-                  user_movie.save
-                end
-              end 
-            end
-          end        
-          #end add date added
+          end  
           
           user_movies = UserMovie.where(user_id: user.id, collection: false, watched: false, watchlist: false)
           user_movies.each do |user_movie|
@@ -194,6 +174,30 @@ class Movie < ActiveRecord::Base
             end
           end
         end
+      rescue => e
+        logger.error "\n TRAKT ALL RESULT ERROR: " + e.to_s + "\n"
+      end
+      
+      begin
+        #add date added
+        trakt_collection_result = trakt.account.movies_collection(trakt.username, 'min')         
+        if trakt_collection_result
+          require 'date'
+          trakt_collection_result.each do |movie|
+            tmdb_id = movie.tmdb_id
+            my_movie = Movie.find_by_tmdb_id(tmdb_id)            
+            if my_movie                
+              user_movie = UserMovie.where(user_id: user.id, movie_id: my_movie.id).limit(1).first
+              if user_movie
+                puts user_movie.to_yaml 
+                user_movie.date_collected = DateTime.strptime(movie.collected.to_s,'%s')
+                puts user_movie.date_collected.to_s
+                user_movie.save
+              end
+            end 
+          end
+        end        
+        #end add date added
       rescue => e
         logger.error "\n TRAKT COLLECTED RESULT ERROR: " + e.to_s + "\n"
       end

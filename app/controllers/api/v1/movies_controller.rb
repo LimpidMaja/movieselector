@@ -44,7 +44,8 @@ class Api::V1::MoviesController < ApplicationController
         
       @hash = []
       @movies.each do |movie|
-        @hash << { "id" => movie.id, "title" => movie.title, "poster" => movie.poster, "year" => movie.year, "release_date" => movie.release_date, "imdb_rating" => movie.imdb_rating}
+        user_movie = UserMovie.where("user_id = ? AND movie_id = ?", @user.id, movie.id).limit(1).first        
+        @hash << { "id" => movie.id, "title" => movie.title, "poster" => movie.poster, "year" => movie.year, "release_date" => movie.release_date.strftime("%Y-%M-%d %H:%m"), "imdb_rating" => movie.imdb_rating, "date_added" => user_movie.date_collected.strftime("%Y-%M-%d %H:%m")}
       end
       print @hash.to_yaml
       respond_with :movies => @hash      
