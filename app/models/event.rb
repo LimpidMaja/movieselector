@@ -15,4 +15,14 @@ class Event < ActiveRecord::Base
   attr_accessor :event_status
   attr_accessor :winner_movie
   attr_accessor :knockout_matches
+  
+  def check_progress
+    if rating_phase == "wait_users"
+      
+      
+    elsif rating_phase == "starting"
+    elsif rating_phase == "knockout_match"
+    elsif rating_phase == "done"      
+    end
+  end
 end

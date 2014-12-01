@@ -83,7 +83,7 @@ class Api::V1::EventsController < ApplicationController
                     event_user_votes.each do |vote|
                       score = score + vote.score
                     end
-                    if score < 10
+                    if score < 2
                       if friend_user.id == @user.id 
                         event.event_status = "vote"                    
                       end                   
@@ -931,7 +931,7 @@ class Api::V1::EventsController < ApplicationController
         puts "SUM SCORE:"+sum.to_s
       end
          
-      if event.rating_phase == "starting" && !params[:rated_movies].nil? && ((event.one_to_five? && params[:rated_movies].count == event.num_votes_per_user) || (event.one_to_ten? && 10 == sum)) 
+      if event.rating_phase == "starting" && !params[:rated_movies].nil? && ((event.one_to_five? && params[:rated_movies].count == event.num_votes_per_user) || (event.one_to_ten? && sum > 1)) 
         event_user = EventUser.where("event_id = ? AND user_id = ?", event.id, @user.id).limit(1).first              
                
         if !event_user.nil? && event_user.accepted?
@@ -944,7 +944,7 @@ class Api::V1::EventsController < ApplicationController
               event_user_votes.each do |vote|
                 score = score + vote.score
               end
-              if score < 10                      
+              if score < 2                      
                 voted = false
               else
                 voted = true
@@ -1012,7 +1012,7 @@ class Api::V1::EventsController < ApplicationController
                     event_user_votes.each do |vote|
                       score = score + vote.score
                     end
-                    if score < 10                                        
+                    if score < 2                                        
                       all_voted = false
                     else
                       votes_user_count = votes_user_count + 1

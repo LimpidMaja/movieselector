@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20141128181505) do
+ActiveRecord::Schema.define(version: 20141201170205) do
 
   create_table "access_keys", force: true do |t|
     t.string   "access_token"
@@ -98,6 +98,7 @@ ActiveRecord::Schema.define(version: 20141128181505) do
     t.integer "event_id"
     t.integer "num_votes"
     t.integer "accept",    default: 0
+    t.integer "status",    default: 0
   end
 
   create_table "events", force: true do |t|

@@ -157,47 +157,31 @@ class Api::V1::MoviesController < ApplicationController
   end
   
   def trakt
-     if token_and_options(request)
-      access_key = AccessKey.find_by_access_token(token_and_options(request))
-      @user = User.find_by_id(access_key.user_id)
+     p "TRAKT"      
+    if params[:trakt_username].present? && params[:trakt_password].present?
+      p ":trakt_username : " +params[:trakt_username]  
+      p ":trakt_password : " +params[:trakt_password]  
+      @setting = @user.setting       
+      @setting.trakt_username = params[:trakt_username].downcase
+      @setting.trakt_password = params[:trakt_password]
       
-      p "TRAKT"
-      
-      if params[:trakt_username].present? && params[:trakt_password].present?
-        p ":trakt_username : " +params[:trakt_username]  
-        p ":trakt_password : " +params[:trakt_password]  
-        @setting = @user.setting       
-        @setting.trakt_username = params[:trakt_username].downcase
-        @setting.trakt_password = params[:trakt_password]
-        
-        if @setting.save
-          render :json => { :status => "OK"}, :status => 200
-        else          
-          render :json => { :error => @setting.errors}, :status => 202
-        end
-      else
-        render :events => { :info => "Error" }, :status => 403
-      end       
+      if @setting.save
+        render :json => { :status => "OK"}, :status => 200
+      else          
+        render :json => { :error => @setting.errors}, :status => 202
+      end
     else
       render :events => { :info => "Error" }, :status => 403
-    end   
+    end    
   end
   
-   def import_trakt
-     if token_and_options(request)
-      access_key = AccessKey.find_by_access_token(token_and_options(request))
-      @user = User.find_by_id(access_key.user_id)
-      
-      p "TRAKT IMPORT"
-      
-      Thread.new do
-        Movie.sync_trakt(@user) 
-      end
-      
-      render :json => { :status => "OK"}, :status => 200            
-    else
-      render :events => { :info => "Error" }, :status => 403
-    end   
+  def import_trakt
+    p "TRAKT IMPORT"      
+    Thread.new do
+      Movie.sync_trakt(@user) 
+    end
+    
+    render :json => { :status => "OK"}, :status => 200 
   end
 
   # GET /movies
@@ -228,20 +212,8 @@ class Api::V1::MoviesController < ApplicationController
   
   def restrict_access
     authenticate_or_request_with_http_token do |token, options|
-      p "aUTH"
-      #if access_key = AccessKey.includes(:user).find_by_access_token(token_and_options(request))
-      #  puts " ACK:" + access_key.to_yaml
-      #end
       @user = User.joins(:access_key).where("access_token = ?", token).limit(1).first
       @user.present?
-      # 
-      #end
-      #@user = User.find_by_id(access_key.user_id)
-         #    @movies = Movie.joins(:user_movies).select("movies.id, movies.title, movies.year, movies.poster, movies.release_date, movies.imdb_rating, user_movies.user_id, user_movies.date_collected")
-         #.where("user_movies.user_id = ? AND user_movies.collection = true", @user.id).order("title")
- 
-      #AccessKey.exists?(access_token: token)
-     # @token = token
     end
   end
 end
