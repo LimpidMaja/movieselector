@@ -5,50 +5,19 @@ class Api::V1::MoviesController < ApplicationController
   include ActionController::HttpAuthentication::Token
   
   def autocomplete
-    if token_and_options(request)
-      access_key = AccessKey.find_by_access_token(token_and_options(request))
-      @user = User.find_by_id(access_key.user_id)
-      
-      p "AUTOCOMPLETE"
-      p "TERM : " +params[:term]
-      #render json: Movie.search(params[:query], fields: [{title: :word_start}], misspellings: {distance: 2}, limit: 10).map(&:title)
-        
-      @hash = []
-      @movies= Movie.select("id, title, year, poster").where("lower(title) LIKE ? OR lower(title) LIKE ?", "#{params[:term].downcase}%", "% #{params[:term].downcase}%").limit(10)
-      @movies.each do |movie|
-        @hash << { "id" => movie.id, "title" => movie.title, "poster" => movie.poster, "year" => movie.year}
-      end
-      print @hash.to_yaml
-    #  render :json => @hash
-      respond_with :movies => @hash
-      
-    else
-      render :events => { :info => "Error" }, :status => 403
-    end   
+      p "AUTOCOMPLETE TERM : " +params[:term]
+      @movies = Movie.select("id, title, year, poster").where("lower(title) LIKE ? OR lower(title) LIKE ?", "#{params[:term].downcase}%", "% #{params[:term].downcase}%").limit(10)
+      respond_with :movies => @movies    
   end
   
   def collection
-    if token_and_options(request)
-      access_key = AccessKey.find_by_access_token(token_and_options(request))
-      @user = User.find_by_id(access_key.user_id)
-      
-      p "Collection"
-      if params[:term].present?
-        p "TERM : " +params[:term]
-        @movies = Movie.joins(:user_movies).select("movies.id, movies.title, movies.year, movies.poster, movies.release_date, movies.imdb_rating, user_movies.user_id, user_movies.date_collected").where("user_movies.user_id = ? AND user_movies.collection = true AND (lower(movies.title) LIKE ? OR lower(movies.title) LIKE ?)", @user.id, "#{params[:term].downcase}%", "% #{params[:term].downcase}%").limit(10)
-      else        
-        @movies = Movie.joins(:user_movies).select("movies.id, movies.title, movies.year, movies.poster, movies.release_date, movies.imdb_rating, user_movies.user_id, user_movies.date_collected").where("user_movies.user_id = ? AND user_movies.collection = true", @user.id).order("title")
-      end
-        
-      @hash = []
-      @movies.each do |movie|
-        @hash << { "id" => movie.id, "title" => movie.title, "poster" => movie.poster, "year" => movie.year, "release_date" => movie.release_date.strftime('%Y-%m-%d %H:%M')  , "imdb_rating" => movie.imdb_rating, "date_added" => movie.date_collected.strftime("%Y-%m-%d %H:%M")}
-      end
-      print @hash.to_yaml
-      respond_with :movies => @hash      
-    else
-      render :events => { :info => "Error" }, :status => 403
-    end   
+    if params[:term].present?
+      p "TERM : " +params[:term]
+      @movies = Movie.joins(:user_movies).select("movies.id, movies.title, movies.year, movies.poster, movies.release_date, movies.imdb_rating, user_movies.user_id, user_movies.date_collected").where("user_movies.user_id = ? AND user_movies.collection = true AND (lower(movies.title) LIKE ? OR lower(movies.title) LIKE ?)", @user.id, "#{params[:term].downcase}%", "% #{params[:term].downcase}%").limit(10)
+    else        
+      @movies = Movie.joins(:user_movies).select("movies.id, movies.title, movies.year, movies.poster, movies.release_date, movies.imdb_rating, user_movies.user_id, user_movies.date_collected").where("user_movies.user_id = ? AND user_movies.collection = true", @user.id).order("title")
+    end
+    respond_with :movies => @movies         
   end
   
   def search_lists
@@ -186,6 +155,50 @@ class Api::V1::MoviesController < ApplicationController
       render :events => { :info => "Error" }, :status => 403
     end   
   end
+  
+  def trakt
+     if token_and_options(request)
+      access_key = AccessKey.find_by_access_token(token_and_options(request))
+      @user = User.find_by_id(access_key.user_id)
+      
+      p "TRAKT"
+      
+      if params[:trakt_username].present? && params[:trakt_password].present?
+        p ":trakt_username : " +params[:trakt_username]  
+        p ":trakt_password : " +params[:trakt_password]  
+        @setting = @user.setting       
+        @setting.trakt_username = params[:trakt_username].downcase
+        @setting.trakt_password = params[:trakt_password]
+        
+        if @setting.save
+          render :json => { :status => "OK"}, :status => 200
+        else          
+          render :json => { :error => @setting.errors}, :status => 202
+        end
+      else
+        render :events => { :info => "Error" }, :status => 403
+      end       
+    else
+      render :events => { :info => "Error" }, :status => 403
+    end   
+  end
+  
+   def import_trakt
+     if token_and_options(request)
+      access_key = AccessKey.find_by_access_token(token_and_options(request))
+      @user = User.find_by_id(access_key.user_id)
+      
+      p "TRAKT IMPORT"
+      
+      Thread.new do
+        Movie.sync_trakt(@user) 
+      end
+      
+      render :json => { :status => "OK"}, :status => 200            
+    else
+      render :events => { :info => "Error" }, :status => 403
+    end   
+  end
 
   # GET /movies
   # GET /movies.json
@@ -216,8 +229,19 @@ class Api::V1::MoviesController < ApplicationController
   def restrict_access
     authenticate_or_request_with_http_token do |token, options|
       p "aUTH"
-      @token = token
-      AccessKey.exists?(access_token: token)
+      #if access_key = AccessKey.includes(:user).find_by_access_token(token_and_options(request))
+      #  puts " ACK:" + access_key.to_yaml
+      #end
+      @user = User.joins(:access_key).where("access_token = ?", token).limit(1).first
+      @user.present?
+      # 
+      #end
+      #@user = User.find_by_id(access_key.user_id)
+         #    @movies = Movie.joins(:user_movies).select("movies.id, movies.title, movies.year, movies.poster, movies.release_date, movies.imdb_rating, user_movies.user_id, user_movies.date_collected")
+         #.where("user_movies.user_id = ? AND user_movies.collection = true", @user.id).order("title")
+ 
+      #AccessKey.exists?(access_token: token)
+     # @token = token
     end
   end
 end

@@ -14,6 +14,8 @@ class Setting < ActiveRecord::Base
     self.trakt_password = Digest::SHA1.hexdigest(trakt_password) if trakt_password_changed?
 
     begin
+      puts "PaSS:  " + trakt_username.to_s
+      puts "PaSS:  " + trakt_password.to_s
       require 'trakt'
       trakt = Trakt.new
       trakt.apikey = Rails.application.secrets.trakt_API

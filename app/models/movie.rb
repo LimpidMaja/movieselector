@@ -24,6 +24,18 @@ class Movie < ActiveRecord::Base
   attr_accessor :watchlist
   attr_accessor :voting_score
   
+  def release_date
+    return read_attribute(:release_date).strftime('%Y-%m-%d %H:%M')
+  end
+  
+   
+  def date_collected
+    if read_attribute(:date_collected).present?
+      return read_attribute(:date_collected).strftime('%Y-%m-%d %H:%M')
+    end
+  end
+  
+  
   #after_initialize :set_attr
 
   #def set_attr

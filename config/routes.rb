@@ -4,6 +4,7 @@ Movieselector::Application.routes.draw do
   namespace :api, defaults: {format: 'json'} do
     scope module: :v1, constraints: ApiConstraints.new(version: 1, default: true) do
       resources :users
+      resources :settings
       resources :events  do
         member do
           post 'confirm', :as => :confirm_event 
@@ -25,7 +26,13 @@ Movieselector::Application.routes.draw do
       get "/movies/search_lists", :to => "movies#search_lists", :as => :search_lists_movies
       get "/movies/autocomplete", :to => "movies#autocomplete", :as => :autocomplete_movies
       get "/movies/collection", :to => "movies#collection", :as => :collection_movies
-      resources :movies
+      get "/movies/import_trakt", :to => "movies#import_trakt", :as => :import_trakt_movies
+      resources :movies do
+        member do
+          post 'trakt', :as => :trakt_movie 
+        end
+      end
+      
       #devise_scope :user do
        # match '/sessions' => 'sessions#create', :via => :post
        # match '/sessions' => 'sessions#destroy', :via => :delete
