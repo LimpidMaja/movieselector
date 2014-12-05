@@ -20,7 +20,8 @@ class List < ActiveRecord::Base
          if movie != nil
            @movies << movie
          else
-           Movie.add_movie(tmdb_id, nil, nil)
+           movie = Movie.add_movie(tmdb_id, nil, nil)
+           @movies << movie
          end
       end
   #    @movies = Movie.where(:tmdb_id => tmdb_ids)
@@ -86,7 +87,8 @@ class List < ActiveRecord::Base
          if movie != nil
            @movies << movie
          else
-           Movie.add_movie(tmdb_id, nil, nil)
+           movie = Movie.add_movie(tmdb_id, nil, nil)
+           @movies << movie
          end
       end
       #@movies = Movie.where(:tmdb_id => tmdb_ids)
@@ -183,5 +185,76 @@ class List < ActiveRecord::Base
       logger.info "LIST:; " + upcoming_list.to_yaml
       upcoming_list.save
     end 
+  end
+
+  def self.add_imdb_lists(lists)
+    @results = []
+    lists.each do |movie_list|
+      list = add_imdb_list(movie_list)
+      if list
+        @results << list
+      end
+    end
+    return @results 
+  end
+  
+  def self.add_imdb_list(movie_list)    
+    list = List.find_by_name_and_list_type(movie_list.name, 'imdb')
+    
+    if !list
+      list = List.new      
+      list.name = movie_list.name
+      list.privacy = "public"
+      list.allow_edit = false
+      list.list_type = "imdb"
+      list.edit_privacy = "private"
+    end  
+    list.list_movies = []
+    list.movies = []
+    list.url = movie_list.url       
+    
+    doc = Nokogiri::HTML(open(movie_list.url))
+
+    news_links = doc.css("div").select{|link| link['class'] == "info"}
+    c = 1
+    news_links.each do |info|
+      links = info.css("a")
+      links.each do |link|
+        if link.to_s.include? "onclick"
+          title = link["href"].split('/')[2]    
+          
+          if title.start_with?('tt')          
+            movie = Movie.find_by_imdb_id(title)              
+            if movie
+              list_movie = ListMovie.new()
+              list_movie.movie = movie
+              list_movie.list_order = c
+              list.list_movies << list_movie
+              c = c + 1
+              break;
+            else
+              m ={}
+              m['imdb_id'] = title
+              movie = Movie.add_movie(nil, m, nil)     
+              if movie
+                list_movie = ListMovie.new()
+                list_movie.movie = movie
+                list_movie.list_order = c
+                list.list_movies << list_movie
+                c = c + 1
+                break;
+              end          
+            end
+          end
+        end
+      end
+    end
+    
+    if list.list_movies.size > 0      
+      list.save  
+      return list
+    else 
+      return nil          
+    end
   end
 end

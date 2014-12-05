@@ -13,39 +13,79 @@ class Api::V1::MoviesController < ApplicationController
   def collection
     if params[:term].present?
       p "TERM : " +params[:term]
-      @movies = Movie.joins(:user_movies).select("movies.id, movies.title, movies.year, movies.poster, movies.release_date, movies.imdb_rating, user_movies.user_id, user_movies.date_collected").where("user_movies.user_id = ? AND user_movies.collection = true AND (lower(movies.title) LIKE ? OR lower(movies.title) LIKE ?)", @user.id, "#{params[:term].downcase}%", "% #{params[:term].downcase}%").limit(10)
+      @movies = Movie.joins(:user_movies).select("movies.id, movies.title, movies.year, movies.poster, movies.release_date, movies.runtime, movies.imdb_rating, user_movies.user_id, user_movies.date_collected").where("user_movies.user_id = ? AND user_movies.collection = true AND (lower(movies.title) LIKE ? OR lower(movies.title) LIKE ?)", @user.id, "#{params[:term].downcase}%", "% #{params[:term].downcase}%").limit(10)
     else        
-      @movies = Movie.joins(:user_movies).select("movies.id, movies.title, movies.year, movies.poster, movies.release_date, movies.imdb_rating, user_movies.user_id, user_movies.date_collected").where("user_movies.user_id = ? AND user_movies.collection = true", @user.id).order("title")
+      @movies = Movie.joins(:user_movies).select("movies.id, movies.title, movies.year, movies.poster, movies.release_date, movies.runtime, movies.imdb_rating, user_movies.user_id, user_movies.date_collected").where("user_movies.user_id = ? AND user_movies.collection = true", @user.id).order("title")
     end
     respond_with :movies => @movies         
   end
   
   def search_lists
-    if token_and_options(request)
-      access_key = AccessKey.find_by_access_token(token_and_options(request))
-      @user = User.find_by_id(access_key.user_id)
-      
-      p "AUTOCOMPLETE"
-      p "TERM : " +params[:term]
-            
-      keyword = params[:term]
-      
-      @lists = []      
-      @results = []    
-         
-      # Google search      
-      require 'google_search'
-      require 'rubygems'
-      require 'nokogiri'
-      require 'open-uri'
-      
+    p "SEARCH LISTS: TERM : " +params[:term]            
+    keyword = params[:term]
+    
+    @lists = []      
+       
+    # Google search      
+    require 'google_search'
+    require 'rubygems'
+    require 'nokogiri'
+    require 'open-uri'
+    
+    begin
+      results = GoogleSearch.web :q => keyword + " site:imdb.com/list"
+      results.responseData.results.each do |result|
+        url = result.url
+
+
+        list = List.new()
+        name = result.titleNoFormatting
+        if name.index(' - a list by') != nil
+          list.name = name[6, name.index(' - a list by') - 6]
+        elsif name.index(' - a ...') != nil
+          list.name = name[6, name.index(' - a ...') - 6]
+        else 
+          list.name = name
+        end        
+        
+        list_db = List.includes(:movies).find_by_name_and_list_type(list.name, 'imdb')
+        if !list_db.nil?
+          list = list_db
+          list.url = url
+        else  
+          list.url = url   
+          list.movies = []
+          list.list_movies = []  
+          Thread.new do
+            List.add_imdb_list(list) 
+          end   
+        end
+                  
+        @lists << list
+      end
+    rescue GoogleSearchError
+      puts "GOOGLE SEARCH ERROR"
+    end
+    #end Google search
+   
+    # Google Custom API Search
+    if @lists.empty?
       begin
-        results = GoogleSearch.web :q => keyword + " site:imdb.com/list"
-        results.responseData.results.each do |result|
-          url = result.url
-  
-          list = List.new()
-          name = result.titleNoFormatting
+        require 'google/api_client'
+        require 'google/api_client/client_secrets'
+        require 'google/api_client/auth/installed_app'
+              ####
+        @client = Google::APIClient.new(
+          key: 'AIzaSyBXLE2IBXVhBkHa3ge_jPtqh07Xw7I_b5w', authorization: nil)
+        @search = @client.discovered_api('customsearch')
+        
+        result = @client.execute(api_method: @search.cse.list, parameters: {q: keyword, 
+                       key: 'AIzaSyBXLE2IBXVhBkHa3ge_jPtqh07Xw7I_b5w',
+                       cx: '004001024232679184917:1q83jpmtdoq'})
+                               
+        result.data.items.each do |item|
+          list = List.new()   
+          name = item.title
           if name.index(' - a list by') != nil
             list.name = name[6, name.index(' - a list by') - 6]
           elsif name.index(' - a ...') != nil
@@ -53,107 +93,85 @@ class Api::V1::MoviesController < ApplicationController
           else 
             list.name = name
           end
-                    
-          list.url = url
-          list.movies = []
-          list.list_movies = []
-          @lists << list
-        end
-      rescue GoogleSearchError
-        puts "GOOGLE SEARCH ERROR"
-      end
-      #end Google search
-     
-      # Google Custom API Search
-      if @lists.empty?
-        begin
-          require 'google/api_client'
-          require 'google/api_client/client_secrets'
-          require 'google/api_client/auth/installed_app'
-                ####
-          @client = Google::APIClient.new(
-            key: 'AIzaSyBXLE2IBXVhBkHa3ge_jPtqh07Xw7I_b5w', authorization: nil)
-          @search = @client.discovered_api('customsearch')
-          
-          result = @client.execute(api_method: @search.cse.list, parameters: {q: keyword, 
-                         key: 'AIzaSyBXLE2IBXVhBkHa3ge_jPtqh07Xw7I_b5w',
-                         cx: '004001024232679184917:1q83jpmtdoq'})
-                                 
-          result.data.items.each do |item|
-            list = List.new()   
-            name = item.title
-            if name.index(' - a list by') != nil
-              list.name = name[6, name.index(' - a list by') - 6]
-            elsif name.index(' - a ...') != nil
-              list.name = name[6, name.index(' - a ...') - 6]
-            else 
-              list.name = name
-            end
-                      
-            list.url = item.link
+               
+          list_db = List.includes(:movies).find_by_name_and_list_type(list.name, 'imdb')
+          if !list_db.nil?
+            list = list_db
+            list.url = item.link  
+          else          
+            list.url = item.link  
             list.movies = []
-            list.list_movies = []          
-            @lists << list 
-          end  
-        rescue GoogleSearchError
-          puts "GOOGLE CUSTOM SEARCH API ERROR"
-        end       
-      end
-      # Google Custom API Search
-           
-      @lists.each do |movie_list|
-        doc = Nokogiri::HTML(open(movie_list.url))
+            list.list_movies = []
+            Thread.new do
+              List.add_imdb_list(list) 
+            end  
+          end   
+                 
+          @lists << list 
+        end  
+      rescue GoogleSearchError
+        puts "GOOGLE CUSTOM SEARCH API ERROR"
+      end       
+    end
+    # end Google Custom API Search
+=begin        
+    @results = []     
+    @lists.each do |movie_list|
+      doc = Nokogiri::HTML(open(movie_list.url))
 
-        news_links = doc.css("div").select{|link| link['class'] == "info"}
-        c = 1
-        news_links.each do |info|
-          links = info.css("a")
-          links.each do |link|
-            if link.to_s.include? "onclick"
-              title = link["href"].split('/')[2]    
+      news_links = doc.css("div").select{|link| link['class'] == "info"}
+      c = 1
+      news_links.each do |info|
+        links = info.css("a")
+        links.each do |link|
+          if link.to_s.include? "onclick"
+            title = link["href"].split('/')[2]    
+            
+            if title.start_with?('tt')          
+              movie = Movie.find_by_imdb_id(title)
               
-              if title.start_with?('tt')          
-                movie = Movie.find_by_imdb_id(title)
-                
-                if movie
-                  list_movie = ListMovie.new()
-                  list_movie.movie = movie
-                  list_movie.list_order = c
-                  movie_list.list_movies << list_movie
-                  c = c + 1
-                  break;
-                end
+              if movie
+                list_movie = ListMovie.new()
+                list_movie.movie = movie
+                list_movie.list_order = c
+                movie_list.list_movies << list_movie
+                c = c + 1
+                break;
               end
             end
           end
         end
-        
-        if movie_list.list_movies.size > 0
-          @results << movie_list
-        end
       end
-           
-      @hash = []
-      @results.each do |movie_list|  
-        puts "TITLE " + movie_list.name 
-        
-        movies = []
-        movie_list.list_movies.each do |list_movie|
-          puts "MOVEI: " +  list_movie.movie.title
-          movies << { "id" => list_movie.movie.id, "title" => list_movie.movie.title, "poster" => list_movie.movie.poster, "year" => list_movie.movie.year}
-        end
-        
-        
-        @hash << { "title" =>  movie_list.name, "movies" => movies}
-      end       
-          
-      print @hash.to_yaml
-    #  render :json => @hash
-      respond_with :lists => @hash
       
-    else
-      render :events => { :info => "Error" }, :status => 403
-    end   
+      if movie_list.list_movies.size > 0
+        @results << movie_list
+      end
+    end     
+    @hash = []
+    @results.each do |movie_list|  
+      puts "TITLE " + movie_list.name 
+      
+      movies = []
+      movie_list.list_movies.each do |list_movie|
+        puts "MOVEI: " +  list_movie.movie.title
+        movies << { "id" => list_movie.movie.id, "title" => list_movie.movie.title, "poster" => list_movie.movie.poster, "year" => list_movie.movie.year}
+      end
+      
+      
+      @hash << { "title" =>  movie_list.name, "movies" => movies}
+    end       
+       
+=end     
+    #print @hash.to_yaml
+   # event_json = {:event => @event.as_json(:include => { :movies => { :only => [:id, :title, :year, :poster ]}, :friends => { :only => [:id, :name, :username], :methods => :fb_uid}}, :methods => [:friends, :event_status])}
+          
+  #  render :json => @hash
+    
+    respond_with :lists => @lists.as_json(:only => [:name, :url, :movies => {:only => [:id, :title, :year, :poster]}], :methods => :url)  
+  end
+  
+  def list_movies
+    
   end
   
   def trakt

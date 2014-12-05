@@ -35,6 +35,9 @@ class Movie < ActiveRecord::Base
     end
   end
   
+  def initialize
+    @my_mutex = Mutex.new
+  end
   
   #after_initialize :set_attr
 
@@ -80,11 +83,11 @@ class Movie < ActiveRecord::Base
   def self.sync_facebook(user)
     logger.info "\n SYNC FACEBOOK"
     auth = Authorization.find_by_user_id_and_provider(user.id, "facebook")        
-    @graph = Koala::Facebook::API.new(auth.access_token, Rails.application.secrets.omniauth_provider_secret.to_s)
+    graph = Koala::Facebook::API.new(auth.access_token, Rails.application.secrets.omniauth_provider_secret.to_s)
             
-    if !@graph.nil?
+    if !graph.nil?
       begin
-        videos = @graph.get_connections("me", "video.watches?fields=data")
+        videos = graph.get_connections("me", "video.watches?fields=data")
         
         begin        
           #logger.info "\n @next_page " + videos.to_yaml  
@@ -116,7 +119,7 @@ class Movie < ActiveRecord::Base
       end
       
       begin
-        videos = @graph.get_connections("me", "video.wants_to_watch?fields=data")
+        videos = graph.get_connections("me", "video.wants_to_watch?fields=data")
         
         begin        
           #logger.info "\n @next_page " + videos.to_yaml  
@@ -150,15 +153,15 @@ class Movie < ActiveRecord::Base
   end
   
   def self.sync_trakt(user)
-    @setting = user.setting
+    setting = user.setting
     print "\n username:"
-    print @setting.trakt_username
+    print setting.trakt_username
     require 'trakt'
-    if !@setting.trakt_username.nil? && !@setting.trakt_password.nil?
+    if !setting.trakt_username.nil? && !setting.trakt_password.nil?
       trakt = Trakt.new
       trakt.apikey = Rails.application.secrets.trakt_API
-      trakt.username = @setting.trakt_username
-      trakt.password = @setting.trakt_password
+      trakt.username = setting.trakt_username
+      trakt.password = setting.trakt_password
       
       begin  
         trakt_result = trakt.account.movies_all(trakt.username, 'min')            
@@ -250,8 +253,8 @@ class Movie < ActiveRecord::Base
         start_time = Time.new
         requests = 0
       end
-      @movie = add_movie(i, nil, nil) 
-      if @movie   
+      movie = add_movie(i, nil, nil) 
+      if movie   
         count += 1
       end
       requests += 3      
@@ -376,318 +379,340 @@ class Movie < ActiveRecord::Base
       my_movie = Movie.find_by_tmdb_id(tmdb_id)
     end
     if !my_movie && movie.present? && !movie['imdb_id'].nil? && !movie['imdb_id'].blank?      
-      logger.info "MOVIE BY TRAKT IMDB ID"      
+      logger.info "MOVIE BY TRAKT IMDB ID: " +  movie['imdb_id']      
       my_movie = Movie.find_by_imdb_id(movie['imdb_id'])
     end
     if !my_movie && movie.present? && !movie['tmdb_id'].nil? && !movie['tmdb_id'].blank?         
       logger.info "MOVIE BY TRAKT TMDB ID"
       my_movie = Movie.find_by_tmdb_id(movie['tmdb_id'])
     end
+    #if !my_movie && movie.present? && !movie['imdb_id'].nil? && !movie['imdb_id'].blank? && (movie['tmdb_id'].nil? || movie['tmdb_id'].blank?)         
+    #  logger.info "MOVIE BY IMDB ID FROM TMDB: " + movie['imdb_id']  
+    #  tmdb = Tmdb::Movie.find(movie['imdb_id']) 
+    #end
     
     tmdb_id = movie['tmdb_id'] unless tmdb_id.present?
     
     if (!my_movie || my_movie.missing_data == true)
-      tmdb = Tmdb::Movie.detail(tmdb_id) 
-      if tmdb && tmdb.id && tmdb.adult == false
-        if !my_movie
-          my_movie = Movie.new
-          logger.info "NEW MOVIE"
-        end
-        my_movie.missing_data = false
+      if !my_movie && movie.present? && !movie['imdb_id'].nil? && !movie['imdb_id'].blank? && (movie['tmdb_id'].nil? || movie['tmdb_id'].blank?)         
+        logger.info "MOVIE BY IMDB ID FROM TMDB: " + movie['imdb_id']  
+        results = Tmdb::Find.imdb_id(movie['imdb_id'])
+        if results && results.movie_results
+          puts "RESULTS MOVIES: " + results.movie_results.first.id.to_s
+          tmdb_id = results.movie_results.first.id.to_s
+        end 
+      end
         
-        if !tmdb.original_title.nil? && !tmdb.original_title.empty?
-          if my_movie.original_title.nil? || my_movie.original_title.empty? || my_movie.original_title != tmdb.original_title
-            my_movie.original_title = tmdb.original_title
-          end
-        end
-        if !tmdb.budget.nil? && tmdb.budget > 0 
-          if my_movie.budget.nil? || my_movie.budget == 0 || tmdb.budget.to_i != my_movie.budget.to_i
-            my_movie.budget = tmdb.budget
-          end 
-        end
-        if !tmdb.revenue.nil? && tmdb.revenue > 0
-          if my_movie.revenue.nil? || my_movie.revenue == 0 || my_movie.revenue.to_i != tmdb.revenue.to_i
-            my_movie.revenue = tmdb.revenue
-          end
-        end
-        if !tmdb.status.nil? && !tmdb.status.empty?
-          if my_movie.status.nil? || my_movie.status.empty? || my_movie.status != tmdb.status
-            my_movie.status = tmdb.status
-          end
-        end
-        if !tmdb.release_date.nil? && !tmdb.release_date.to_date.nil?
-          if my_movie.release_date.nil? || my_movie.release_date.to_date.nil? || my_movie.release_date != tmdb.release_date
-            my_movie.release_date = tmdb.release_date
-          end
-        end
-        if !tmdb.imdb_id.nil? && !tmdb.imdb_id.empty?
-          if my_movie.imdb_id.nil? || my_movie.imdb_id.empty? || my_movie.imdb_id != tmdb.imdb_id
-            my_movie.imdb_id = tmdb.imdb_id
-          end
-        end
-        if my_movie.tmdb_id.nil? || my_movie.tmdb_id.to_s.empty?
-          my_movie.tmdb_id = tmdb.id
-        end
-        if !tmdb.title.nil? && !tmdb.title.empty?
-          if my_movie.title.nil? || my_movie.title.empty? || my_movie.title != tmdb.title
-            my_movie.title = tmdb.title
-          end
-        end
-        if !tmdb.tagline.nil? && !tmdb.tagline.empty?
-          if my_movie.tagline.nil? || my_movie.tagline.empty? || my_movie.tagline != tmdb.tagline
-            my_movie.tagline = tmdb.tagline
-          end
-        end
-        if !tmdb.runtime.nil? && tmdb.runtime != 0
-          if my_movie.runtime.nil? || my_movie.runtime == 0 || my_movie.runtime != tmdb.runtime
-            my_movie.runtime = tmdb.runtime
-          end
-        end
-        if !tmdb.overview.nil? && !tmdb.overview.empty?
-          if my_movie.plot.nil? || my_movie.plot.empty? || my_movie.plot != tmdb.overview
-            my_movie.plot = tmdb.overview
-          end
-        end
-        if !tmdb.release_date.nil? && !tmdb.release_date.to_date.nil?
-          if my_movie.year.nil? || my_movie.year == 0 || my_movie.year != tmdb.release_date.to_date.year        
-            my_movie.year = tmdb.release_date.to_date.year
-          end
-        end
-        if !tmdb.backdrop_path.nil? && !tmdb.backdrop_path.empty?
-          if my_movie.fanart.nil? || my_movie.fanart.empty? || my_movie.fanart != tmdb.backdrop_path
-            my_movie.fanart = "http://image.tmdb.org/t/p/original" + tmdb.backdrop_path
-          end
-        end
-        if !tmdb.poster_path.nil? && !tmdb.poster_path.empty?
-          if my_movie.poster.nil? || my_movie.poster.empty? || my_movie.poster != tmdb.poster_path
-            my_movie.poster = "http://image.tmdb.org/t/p/original" + tmdb.poster_path
-          end
-        end
-                
-        tmdb.production_countries.each do |country|
-          my_country = Country.find_by_name(country.name)
-          if !my_country
-            my_country = Country.new
-            my_country.name = country.name
-            my_country.save
-          end
-          my_movie.countries << my_country unless !my_movie.countries.find{|item| item[:name] == my_country.name}.nil?
-        end
-
-        tmdb.genres.each do |genre|
-          my_genre = Genre.find_by_name(genre.name)
-          if !my_genre
-            my_genre = Genre.new
-            my_genre.name = genre.name
-            my_genre.save
-          end
-          my_movie.genres << my_genre unless !my_movie.genres.find{|item| item[:name] == my_genre.name}.nil?
-        end
-
-        tmdb.spoken_languages.each do |language|
-          my_language = Language.find_by_name(language.iso_639_1)
-          if !my_language
-            my_language = Language.new
-            my_language.name = language.iso_639_1
-            my_language.save
-          end
-          my_movie.languages << my_language unless !my_movie.languages.find{|item| item[:name] == my_language.name}.nil?
-        end
-
-        tmdb.production_companies.each do |company|
-          my_company = Company.find_by_name(company['name'])
-          if !my_company
-            my_company = Company.new
-            my_company.name = company.name
-            my_company.save
-          end
-          my_movie.companies << my_company unless !my_movie.companies.find{|item| item[:name] == my_company.name}.nil?
-        end
-        
-        keywords = Tmdb::Movie.keywords(my_movie.tmdb_id)
-        begin
-          keywords.keywords.each do |keyword|
-            my_keyword = Keyword.find_by_name(keyword.name)
-            if !my_keyword
-              my_keyword = Keyword.new
-              my_keyword.name = keyword.name
-              my_keyword.save
-            end
-            my_movie.keywords << my_keyword unless !my_movie.keywords.find{|item| item[:name] == my_keyword.name}.nil?
-          end
-        rescue => e
-          logger.error "KEYWORDS ERROR: " + e.to_s + "\n"
-          my_movie.missing_data = true
-        end
-        
-        trailers = Tmdb::Movie.trailers(my_movie.tmdb_id)
-        begin
-          trailers.youtube.each do |trailer|
-            if trailer.type == 'Trailer'              
-              if my_movie.trailer.nil? || my_movie.trailer.empty? || my_movie.trailer != "http://youtube.com/watch?v=" + trailer.source
-                my_movie.trailer = "http://youtube.com/watch?v=" + trailer.source
-              end              
-            end
-          end
-        rescue => e
-          logger.error "TRAILERS ERROR: " + e.to_s + "\n"
-          my_movie.missing_data = true
-        end
-             
-        credits = Tmdb::Movie.credits(my_movie.tmdb_id)
-        begin            
-          credits.cast.each do |actor|
-            my_actor = Actor.find_by_name(actor.name)
-            if !my_actor
-              my_actor = Actor.new
-              my_actor.name = actor.name
-              if actor.profile_path
-                my_actor.image = 'http://image.tmdb.org/t/p/w300' + actor.profile_path
-              end
-              my_actor.save
-            end
-            if my_movie.id
-              actor_role = MovieActor.find_by_actor_id_and_movie_id(my_actor.id, my_movie.id)
-            end
-            if !my_movie.id || !actor_role
-              actor_role = MovieActor.new
-              actor_role.movie = my_movie
-              actor_role.actor = my_actor
-            end
-            actor_role.role = actor.character
-            role = ActiveSupport::Inflector.transliterate(actor.character)
-            my_movie.movie_actors << actor_role unless !my_movie.movie_actors.find{|item| item[:actor_id] == actor_role.actor_id && ActiveSupport::Inflector.transliterate(item[:role]) == role }.nil?
-          end
-                     
-          credits.crew.each do |crew|
-            if crew.department == 'Directing'
-              my_director = Director.find_by_name(crew.name)
-              if !my_director
-                my_director = Director.new
-                my_director.name = crew.name
-                if crew.profile_path
-                  my_director.image = 'http://image.tmdb.org/t/p/w300' + crew.profile_path
-                end
-                my_director.save
-              end
-            my_movie.directors << my_director unless !my_movie.directors.find{|item| item[:name] == my_director.name}.nil?
-            elsif crew.department == 'Writing'
-              my_writer = Writer.find_by_name(crew.name)
-              if !my_writer
-                my_writer = Writer.new
-                my_writer.name = crew.name
-                if crew.profile_path
-                  my_writer.image = 'http://image.tmdb.org/t/p/w300' + crew.profile_path
-                end
-                my_writer.save
-              end
-              if my_movie.id
-                writer_role = MovieWriter.find_by_writer_id_and_movie_id(my_writer.id, my_movie.id)
-              end
-              if !my_movie.id || !writer_role
-                writer_role = MovieWriter.new
-                writer_role.movie = my_movie
-                writer_role.writer = my_writer
-              end
-              writer_role.role = crew.job
-              my_movie.movie_writers << writer_role unless !my_movie.movie_writers.find{|item| item[:writer_id] == writer_role.writer_id && item[:role] == writer_role.role }.nil?
-            end
-          end
-        rescue => e
-          logger.error "CREW ERROR: " + e.to_s + "\n"
-          my_movie.missing_data = true
-        end        
+      tmdb = Tmdb::Movie.detail(tmdb_id)
        
-        # check Trakt
-        if movie.present?
-          begin        
-            if my_movie.year.nil? || my_movie.year == 0
-              my_movie.year = movie['year']
-            end
-            if my_movie.trakt_id.nil? || my_movie.trakt_id.empty?
-              my_movie.trakt_id = movie['url']
-            end
-            if my_movie.fanart.nil? || my_movie.fanart.empty?
-              if !movie['images'].nil? && !movie['images']['fanart'].nil?
-                my_movie.fanart = movie['images']['fanart']
-              end
-            end          
-            if my_movie.trailer.nil? || my_movie.trailer.empty?
-              my_movie.trailer = movie['trailer']
-            end
-            if my_movie.tagline.nil? || my_movie.tagline.empty?
-              my_movie.tagline = movie['tagline']
-            end
-        #else
-        #  begin
-        #    trakt = Trakt.new
-        #    trakt.apikey = Rails.application.secrets.trakt_API
-        #    trakt_result = trakt.movie.summary(tmdb_id)
-        #    if trakt_result
-        #      my_movie.trakt_id = trakt_result.url
-        #      if my_movie.fanart.nil? || my_movie.fanart.empty?
-        #      my_movie.fanart = trakt_result.images.fanart
-        #      end
-        #      my_movie.trailer = trakt_result.trailer
-        #      if my_movie.year.nil? || my_movie.year == 0
-        #        my_movie.year = trakt_result.year
-        #      end
-        #      if my_movie.tagline.nil? || my_movie.tagline.empty?
-        #        my_movie.tagline = trakt_result.tagline
-        #      end
-        #    end
-          rescue => e
-            logger.error "TRAKT ERROR: " + e.to_s + "\n"
-           # my_movie.missing_data = true
+      if tmdb && tmdb.id && tmdb.adult == false
+        @my_mutex.synchronize do
+          if !my_movie
+            my_movie = Movie.new
+            logger.info "NEW MOVIE: " + tmdb.to_yaml
           end
-        end
-        
-        # Check OMDB
-        if !my_movie.imdb_id.nil? && !my_movie.imdb_id.empty?
-          begin  
-            imdb = OMDB.id(my_movie.imdb_id)
-            if imdb && imdb.response == 'True'
-              if my_movie.rated.nil? || my_movie.rated.empty?
-                my_movie.rated = imdb.rated
+          my_movie.missing_data = false
+          
+          if !tmdb.original_title.nil? && !tmdb.original_title.empty?
+            if my_movie.original_title.nil? || my_movie.original_title.empty? || my_movie.original_title != tmdb.original_title
+              my_movie.original_title = tmdb.original_title
+            end
+          end
+          if !tmdb.budget.nil? && tmdb.budget > 0 
+            if my_movie.budget.nil? || my_movie.budget == 0 || tmdb.budget.to_i != my_movie.budget.to_i
+              my_movie.budget = tmdb.budget
+            end 
+          end
+          if !tmdb.revenue.nil? && tmdb.revenue > 0
+            if my_movie.revenue.nil? || my_movie.revenue == 0 || my_movie.revenue.to_i != tmdb.revenue.to_i
+              my_movie.revenue = tmdb.revenue
+            end
+          end
+          if !tmdb.status.nil? && !tmdb.status.empty?
+            if my_movie.status.nil? || my_movie.status.empty? || my_movie.status != tmdb.status
+              my_movie.status = tmdb.status
+            end
+          end
+          begin
+          if !tmdb.release_date.nil? && !tmdb.release_date.to_date.nil?
+            if my_movie.release_date.nil? || my_movie.release_date.to_date.nil? || my_movie.release_date != tmdb.release_date
+              my_movie.release_date = tmdb.release_date
+            end
+          end
+          rescue => e
+            puts "RELEASE DATE ERROR"
+          end
+          if !tmdb.imdb_id.nil? && !tmdb.imdb_id.empty?
+            if my_movie.imdb_id.nil? || my_movie.imdb_id.empty? || my_movie.imdb_id != tmdb.imdb_id
+              my_movie.imdb_id = tmdb.imdb_id
+            end
+          end
+          if my_movie.tmdb_id.nil? || my_movie.tmdb_id.to_s.empty?
+            my_movie.tmdb_id = tmdb.id
+          end
+          if !tmdb.title.nil? && !tmdb.title.empty?
+            if my_movie.title.nil? || my_movie.title.empty? || my_movie.title != tmdb.title
+              my_movie.title = tmdb.title
+            end
+          end
+          if !tmdb.tagline.nil? && !tmdb.tagline.empty?
+            if my_movie.tagline.nil? || my_movie.tagline.empty? || my_movie.tagline != tmdb.tagline
+              my_movie.tagline = tmdb.tagline
+            end
+          end
+          if !tmdb.runtime.nil? && tmdb.runtime != 0
+            if my_movie.runtime.nil? || my_movie.runtime == 0 || my_movie.runtime != tmdb.runtime
+              my_movie.runtime = tmdb.runtime
+            end
+          end
+          if !tmdb.overview.nil? && !tmdb.overview.empty?
+            if my_movie.plot.nil? || my_movie.plot.empty? || my_movie.plot != tmdb.overview
+              my_movie.plot = tmdb.overview
+            end
+          end
+          if !tmdb.release_date.nil? && !tmdb.release_date.to_date.nil?
+            if my_movie.year.nil? || my_movie.year == 0 || my_movie.year != tmdb.release_date.to_date.year        
+              my_movie.year = tmdb.release_date.to_date.year
+            end
+          end
+          if !tmdb.backdrop_path.nil? && !tmdb.backdrop_path.empty?
+            if my_movie.fanart.nil? || my_movie.fanart.empty? || my_movie.fanart != tmdb.backdrop_path
+              my_movie.fanart = "http://image.tmdb.org/t/p/original" + tmdb.backdrop_path
+            end
+          end
+          if !tmdb.poster_path.nil? && !tmdb.poster_path.empty?
+            if my_movie.poster.nil? || my_movie.poster.empty? || my_movie.poster != tmdb.poster_path
+              my_movie.poster = "http://image.tmdb.org/t/p/original" + tmdb.poster_path
+            end
+          end
+               
+               puts " HERE!!!!"
+                  
+          tmdb.production_countries.each do |country|
+            my_country = Country.find_by_name(country.name)
+            if !my_country
+              my_country = Country.new
+              my_country.name = country.name
+              my_country.save
+            end
+            my_movie.countries << my_country unless !my_movie.countries.find{|item| item[:name] == my_country.name}.nil?
+          end
+  
+          tmdb.genres.each do |genre|
+            my_genre = Genre.find_by_name(genre.name)
+            if !my_genre
+              my_genre = Genre.new
+              my_genre.name = genre.name
+              my_genre.save
+            end
+            my_movie.genres << my_genre unless !my_movie.genres.find{|item| item[:name] == my_genre.name}.nil?
+          end
+  
+          tmdb.spoken_languages.each do |language|
+            my_language = Language.find_by_name(language.iso_639_1)
+            if !my_language
+              my_language = Language.new
+              my_language.name = language.iso_639_1
+              my_language.save
+            end
+            my_movie.languages << my_language unless !my_movie.languages.find{|item| item[:name] == my_language.name}.nil?
+          end
+  
+          tmdb.production_companies.each do |company|
+            my_company = Company.find_by_name(company['name'])
+            if !my_company
+              my_company = Company.new
+              my_company.name = company.name
+              my_company.save
+            end
+            my_movie.companies << my_company unless !my_movie.companies.find{|item| item[:name] == my_company.name}.nil?
+          end
+          
+          keywords = Tmdb::Movie.keywords(my_movie.tmdb_id)
+          begin
+            keywords.keywords.each do |keyword|
+              my_keyword = Keyword.find_by_name(keyword.name)
+              if !my_keyword
+                my_keyword = Keyword.new
+                my_keyword.name = keyword.name
+                my_keyword.save
               end
-              if my_movie.poster.nil? || my_movie.poster.empty?
-                my_movie.poster = imdb.poster
-              end
-              if my_movie.runtime.nil? || my_movie.runtime == 0
-                my_movie.runtime = imdb.runtime
-              end
-              if my_movie.plot.nil? || my_movie.plot.empty?
-                my_movie.plot = imdb.plot
-              end
-              if my_movie.title.nil? || my_movie.title.empty?
-                my_movie.title = imdb.title
-              end
-              if my_movie.year.nil? || my_movie.year == 0
-                my_movie.year = imdb.year
-              end
-              if my_movie.release_date.nil?
-                my_movie.release_date = imdb.released
-              end
-              my_movie.imdb_rating = imdb.imdb_rating
-              imdb.imdb_votes.gsub!(',','') if imdb.imdb_votes.is_a?(String)
-              my_movie.imdb_num_votes = imdb.imdb_votes.to_i
-              my_movie.awards = imdb.awards
-            else
-              my_movie.missing_data = true
+              my_movie.keywords << my_keyword unless !my_movie.keywords.find{|item| item[:name] == my_keyword.name}.nil?
             end
           rescue => e
-            logger.error "OMDB ERROR: " + e.to_s + "\n"
+            logger.error "KEYWORDS ERROR: " + e.to_s + "\n"
             my_movie.missing_data = true
           end
-        else
-          my_movie.missing_data = true
-        end          
           
-        # save movie  
-        logger.info "MY MOVIE: \n"
-        logger.info my_movie.to_yaml
-        logger.info "\n END \n"
-        my_movie.save
+          trailers = Tmdb::Movie.trailers(my_movie.tmdb_id)
+          begin
+            trailers.youtube.each do |trailer|
+              if trailer.type == 'Trailer'              
+                if my_movie.trailer.nil? || my_movie.trailer.empty? || my_movie.trailer != "http://youtube.com/watch?v=" + trailer.source
+                  my_movie.trailer = "http://youtube.com/watch?v=" + trailer.source
+                end              
+              end
+            end
+          rescue => e
+            logger.error "TRAILERS ERROR: " + e.to_s + "\n"
+            my_movie.missing_data = true
+          end
+               
+          credits = Tmdb::Movie.credits(my_movie.tmdb_id)
+          begin            
+            credits.cast.each do |actor|
+              my_actor = Actor.find_by_name(actor.name)
+              if !my_actor
+                my_actor = Actor.new
+                my_actor.name = actor.name
+                if actor.profile_path
+                  my_actor.image = 'http://image.tmdb.org/t/p/w300' + actor.profile_path
+                end
+                my_actor.save
+              end
+              if my_movie.id
+                actor_role = MovieActor.find_by_actor_id_and_movie_id(my_actor.id, my_movie.id)
+              end
+              if !my_movie.id || !actor_role
+                actor_role = MovieActor.new
+                actor_role.movie = my_movie
+                actor_role.actor = my_actor
+              end
+              actor_role.role = actor.character
+              role = ActiveSupport::Inflector.transliterate(actor.character)
+              my_movie.movie_actors << actor_role unless !my_movie.movie_actors.find{|item| item[:actor_id] == actor_role.actor_id && ActiveSupport::Inflector.transliterate(item[:role]) == role }.nil?
+            end
+                       
+            credits.crew.each do |crew|
+              if crew.department == 'Directing'
+                my_director = Director.find_by_name(crew.name)
+                if !my_director
+                  my_director = Director.new
+                  my_director.name = crew.name
+                  if crew.profile_path
+                    my_director.image = 'http://image.tmdb.org/t/p/w300' + crew.profile_path
+                  end
+                  my_director.save
+                end
+              my_movie.directors << my_director unless !my_movie.directors.find{|item| item[:name] == my_director.name}.nil?
+              elsif crew.department == 'Writing'
+                my_writer = Writer.find_by_name(crew.name)
+                if !my_writer
+                  my_writer = Writer.new
+                  my_writer.name = crew.name
+                  if crew.profile_path
+                    my_writer.image = 'http://image.tmdb.org/t/p/w300' + crew.profile_path
+                  end
+                  my_writer.save
+                end
+                if my_movie.id
+                  writer_role = MovieWriter.find_by_writer_id_and_movie_id(my_writer.id, my_movie.id)
+                end
+                if !my_movie.id || !writer_role
+                  writer_role = MovieWriter.new
+                  writer_role.movie = my_movie
+                  writer_role.writer = my_writer
+                end
+                writer_role.role = crew.job
+                my_movie.movie_writers << writer_role unless !my_movie.movie_writers.find{|item| item[:writer_id] == writer_role.writer_id && item[:role] == writer_role.role }.nil?
+              end
+            end
+          rescue => e
+            logger.error "CREW ERROR: " + e.to_s + "\n"
+            my_movie.missing_data = true
+          end        
+         
+          # check Trakt
+          if movie.present?
+            begin        
+              if my_movie.year.nil? || my_movie.year == 0
+                my_movie.year = movie['year']
+              end
+              if my_movie.trakt_id.nil? || my_movie.trakt_id.empty?
+                my_movie.trakt_id = movie['url']
+              end
+              if my_movie.fanart.nil? || my_movie.fanart.empty?
+                if !movie['images'].nil? && !movie['images']['fanart'].nil?
+                  my_movie.fanart = movie['images']['fanart']
+                end
+              end          
+              if my_movie.trailer.nil? || my_movie.trailer.empty?
+                my_movie.trailer = movie['trailer']
+              end
+              if my_movie.tagline.nil? || my_movie.tagline.empty?
+                my_movie.tagline = movie['tagline']
+              end
+          #else
+          #  begin
+          #    trakt = Trakt.new
+          #    trakt.apikey = Rails.application.secrets.trakt_API
+          #    trakt_result = trakt.movie.summary(tmdb_id)
+          #    if trakt_result
+          #      my_movie.trakt_id = trakt_result.url
+          #      if my_movie.fanart.nil? || my_movie.fanart.empty?
+          #      my_movie.fanart = trakt_result.images.fanart
+          #      end
+          #      my_movie.trailer = trakt_result.trailer
+          #      if my_movie.year.nil? || my_movie.year == 0
+          #        my_movie.year = trakt_result.year
+          #      end
+          #      if my_movie.tagline.nil? || my_movie.tagline.empty?
+          #        my_movie.tagline = trakt_result.tagline
+          #      end
+          #    end
+            rescue => e
+              logger.error "TRAKT ERROR: " + e.to_s + "\n"
+             # my_movie.missing_data = true
+            end
+          end
+          
+          # Check OMDB
+          if !my_movie.imdb_id.nil? && !my_movie.imdb_id.empty?
+            begin  
+              imdb = OMDB.id(my_movie.imdb_id)
+              if imdb && imdb.response == 'True'
+                if my_movie.rated.nil? || my_movie.rated.empty?
+                  my_movie.rated = imdb.rated
+                end
+                if my_movie.poster.nil? || my_movie.poster.empty?
+                  my_movie.poster = imdb.poster
+                end
+                if my_movie.runtime.nil? || my_movie.runtime == 0
+                  my_movie.runtime = imdb.runtime
+                end
+                if my_movie.plot.nil? || my_movie.plot.empty?
+                  my_movie.plot = imdb.plot
+                end
+                if my_movie.title.nil? || my_movie.title.empty?
+                  my_movie.title = imdb.title
+                end
+                if my_movie.year.nil? || my_movie.year == 0
+                  my_movie.year = imdb.year
+                end
+                if my_movie.release_date.nil?
+                  my_movie.release_date = imdb.released
+                end
+                my_movie.imdb_rating = imdb.imdb_rating
+                imdb.imdb_votes.gsub!(',','') if imdb.imdb_votes.is_a?(String)
+                my_movie.imdb_num_votes = imdb.imdb_votes.to_i
+                my_movie.awards = imdb.awards
+              else
+                my_movie.missing_data = true
+              end
+            rescue => e
+              logger.error "OMDB ERROR: " + e.to_s + "\n"
+              my_movie.missing_data = true
+            end
+          else
+            my_movie.missing_data = true
+          end          
+            
+          # save movie  
+          logger.info "MY MOVIE: \n"
+          logger.info my_movie.to_yaml
+          logger.info "\n END \n"
+          my_movie.save
+        end
       else
         logger.info "MOVIE NOT FOUND: " + e.to_s + "\n"
         return nil
@@ -876,11 +901,11 @@ class Movie < ActiveRecord::Base
     
   def self.user_movie_latest_watched(user, current_user)
     if user.present?
-     @movies = Movie.includes(:user_movies).where("user_movies.user_id = ? AND user_movies.watched = true ", user.id).references(:user_movies).limit(10).order("user_movies.date_watched DESC")
+     movies = Movie.includes(:user_movies).where("user_movies.user_id = ? AND user_movies.watched = true ", user.id).references(:user_movies).limit(10).order("user_movies.date_watched DESC")
         
      if !current_user.nil? 
         if current_user.id == user.id
-          @movies.each do |movie|
+          movies.each do |movie|
             user_movie = movie.user_movies.first
             if !user_movie.nil? 
               if user_movie.watched == true
@@ -895,10 +920,10 @@ class Movie < ActiveRecord::Base
             end
           end
         else
-          id_map = @movies.map{|m| m.id}        
+          id_map = movies.map{|m| m.id}        
           current_user_movies = UserMovie.where(:user_id => current_user.id, :movie_id => id_map)
                 
-          @movies.each do |movie|
+          movies.each do |movie|
             user_movie = current_user_movies.detect{|m| m.movie_id == movie.id }          
             if !user_movie.nil? 
               if user_movie.watched == true
@@ -919,11 +944,11 @@ class Movie < ActiveRecord::Base
   
   def self.user_movie_watched(user, current_user, page, page_size)
     if user.present?
-     @movies = Movie.includes(:user_movies).where("user_movies.user_id = ? AND user_movies.watched = true", user.id).references(:user_movies).page(page).per(page_size) 
+     movies = Movie.includes(:user_movies).where("user_movies.user_id = ? AND user_movies.watched = true", user.id).references(:user_movies).page(page).per(page_size) 
           
      if !current_user.nil? 
         if current_user.id == user.id
-          @movies.each do |movie|
+          movies.each do |movie|
             user_movie = movie.user_movies.first
             if !user_movie.nil? 
               if user_movie.watched == true
@@ -938,10 +963,10 @@ class Movie < ActiveRecord::Base
             end
           end
         else
-          id_map = @movies.map{|m| m.id}        
+          id_map = movies.map{|m| m.id}        
           current_user_movies = UserMovie.where(:user_id => current_user.id, :movie_id => id_map)
                 
-          @movies.each do |movie|
+          movies.each do |movie|
             user_movie = current_user_movies.detect{|m| m.movie_id == movie.id }          
             if !user_movie.nil? 
               if user_movie.watched == true
@@ -970,26 +995,26 @@ class Movie < ActiveRecord::Base
       if user.present?
         if only_user_movies.present?
           if watched.present? && only_collected.present? && watchlist.present?
-            @user_movies = user.user_movies.select { |movie| movie.collection == true || movie.watchlist == true }  
+            user_movies = user.user_movies.select { |movie| movie.collection == true || movie.watchlist == true }  
           elsif watched.present? && only_collected.present?
-            @user_movies = user.user_movies.select { |movie| movie.collection == true }  
+            user_movies = user.user_movies.select { |movie| movie.collection == true }  
           elsif watched.present? && watchlist.present?
-            @user_movies = user.user_movies.select { |movie| movie.watchlist == true }  
+            user_movies = user.user_movies.select { |movie| movie.watchlist == true }  
           elsif watchlist.present? && only_collected.present?
-            @user_movies = user.user_movies.select { |movie| movie.watched == false && (movie.collection == true || movie.watchlist == true)}  
+            user_movies = user.user_movies.select { |movie| movie.watched == false && (movie.collection == true || movie.watchlist == true)}  
           elsif watched.present?   
-            @user_movies = user.user_movies.select { |movie| movie.watched == true }           
+            user_movies = user.user_movies.select { |movie| movie.watched == true }           
           elsif only_collected.present? 
-            @user_movies = user.user_movies.select { |movie| movie.watched == false && movie.collection == true } 
+            user_movies = user.user_movies.select { |movie| movie.watched == false && movie.collection == true } 
           elsif watchlist.present?   
-            @user_movies = user.user_movies.select { |movie| movie.watched == false && movie.watchlist == true }  
+            user_movies = user.user_movies.select { |movie| movie.watched == false && movie.watchlist == true }  
           else
-            @user_movies = user.user_movies.select { |movie| movie.watched == false }   
+            user_movies = user.user_movies.select { |movie| movie.watched == false }   
           end          
-          user_movies_id_map = @user_movies.map(&:movie_id)  
+          user_movies_id_map = user_movies.map(&:movie_id)  
           where[:id] = [user_movies_id_map]
         else
-          @user_movies = user.user_movies
+          user_movies = user.user_movies
         end         
       end
       
@@ -1000,12 +1025,12 @@ class Movie < ActiveRecord::Base
       #print "\n search_params: " + search_params.to_s + "\n"
       
       if user.present?
-        @movies = Movie.search(search_params, include: [:user_movies], where: where, suggest: true, boost: :imdb_rating, page: page, per_page: page_size)
+        movies = Movie.search(search_params, include: [:user_movies], where: where, suggest: true, boost: :imdb_rating, page: page, per_page: page_size)
         
         if !current_user.nil? 
           if current_user.id == user.id
-            @movies.each do |movie|
-              user_movie = @user_movies.find{|item| item[:movie_id] == movie.id}
+            movies.each do |movie|
+              user_movie = user_movies.find{|item| item[:movie_id] == movie.id}
               if !user_movie.nil? 
                 if user_movie.watched == true
                   movie.watched = true
@@ -1019,10 +1044,10 @@ class Movie < ActiveRecord::Base
               end   
             end    
           else
-            id_map = @movies.map{|m| m.id}        
+            id_map = movies.map{|m| m.id}        
             current_user_movies = UserMovie.where(:user_id => current_user.id, :movie_id => id_map)
                   
-            @movies.each do |movie|
+            movies.each do |movie|
               user_movie = current_user_movies.detect{|m| m.movie_id == movie.id }          
               if !user_movie.nil? 
                 if user_movie.watched == true
@@ -1039,13 +1064,13 @@ class Movie < ActiveRecord::Base
           end      
         end  
       else
-        @movies = Movie.search(search_params, where: where, suggest: true, boost: :imdb_rating, page: page, per_page: page_size)
+        movies = Movie.search(search_params, where: where, suggest: true, boost: :imdb_rating, page: page, per_page: page_size)
         
         if !current_user.nil?           
-          id_map = @movies.map{|m| m.id}        
+          id_map = movies.map{|m| m.id}        
           current_user_movies = UserMovie.where(:user_id => current_user.id, :movie_id => id_map)
                 
-          @movies.each do |movie|
+          movies.each do |movie|
             user_movie = current_user_movies.detect{|m| m.movie_id == movie.id }          
             if !user_movie.nil? 
               if user_movie.watched == true
@@ -1062,30 +1087,30 @@ class Movie < ActiveRecord::Base
         end  
       end
       
-      @suggestion = @movies.suggestions.first
+      suggestion = movies.suggestions.first
     else #search params not present
       if user.present? && only_user_movies.present?
         if watched.present? && only_collected.present? && watchlist.present?
-          @movies = Movie.includes(:user_movies).where("user_movies.user_id = ? AND (user_movies.watchlist = true OR user_movies.collection = true)", user.id).references(:user_movies).page(page).per(page_size)
+          movies = Movie.includes(:user_movies).where("user_movies.user_id = ? AND (user_movies.watchlist = true OR user_movies.collection = true)", user.id).references(:user_movies).page(page).per(page_size)
         elsif watched.present? && only_collected.present?
-          @movies = Movie.includes(:user_movies).where("user_movies.user_id = ? AND user_movies.collection = true", user.id).references(:user_movies).page(page).per(page_size)    
+          movies = Movie.includes(:user_movies).where("user_movies.user_id = ? AND user_movies.collection = true", user.id).references(:user_movies).page(page).per(page_size)    
         elsif watched.present? && watchlist.present?
-          @movies = Movie.includes(:user_movies).where("user_movies.user_id = ? AND user_movies.watchlist = true", user.id).references(:user_movies).page(page).per(page_size)
+          movies = Movie.includes(:user_movies).where("user_movies.user_id = ? AND user_movies.watchlist = true", user.id).references(:user_movies).page(page).per(page_size)
         elsif watchlist.present? && only_collected.present?
-          @movies = Movie.includes(:user_movies).where("user_movies.user_id = ? AND user_movies.watched = false AND (user_movies.watchlist = true OR user_movies.collection = true)", user.id).references(:user_movies).page(page).per(page_size)
+          movies = Movie.includes(:user_movies).where("user_movies.user_id = ? AND user_movies.watched = false AND (user_movies.watchlist = true OR user_movies.collection = true)", user.id).references(:user_movies).page(page).per(page_size)
         elsif watched.present?   
-          @movies = Movie.includes(:user_movies).where("user_movies.user_id = ? AND user_movies.watched = true", user.id).references(:user_movies).page(page).per(page_size)
+          movies = Movie.includes(:user_movies).where("user_movies.user_id = ? AND user_movies.watched = true", user.id).references(:user_movies).page(page).per(page_size)
         elsif only_collected.present? 
-          @movies = Movie.includes(:user_movies).where("user_movies.user_id = ? AND user_movies.watched = false AND user_movies.collection = true", user.id).references(:user_movies).page(page).per(page_size)   
+          movies = Movie.includes(:user_movies).where("user_movies.user_id = ? AND user_movies.watched = false AND user_movies.collection = true", user.id).references(:user_movies).page(page).per(page_size)   
         elsif watchlist.present?   
-          @movies = Movie.includes(:user_movies).where("user_movies.user_id = ? AND user_movies.watched = false AND user_movies.watchlist = true", user.id).references(:user_movies).page(page).per(page_size)   
+          movies = Movie.includes(:user_movies).where("user_movies.user_id = ? AND user_movies.watched = false AND user_movies.watchlist = true", user.id).references(:user_movies).page(page).per(page_size)   
         else
-          @movies = Movie.includes(:user_movies).where("user_movies.user_id = ? AND user_movies.watched = false", user.id).references(:user_movies).page(page).per(page_size) 
+          movies = Movie.includes(:user_movies).where("user_movies.user_id = ? AND user_movies.watched = false", user.id).references(:user_movies).page(page).per(page_size) 
         end 
         
         if !current_user.nil? 
           if current_user.id == user.id
-            @movies.each do |movie|
+            movies.each do |movie|
               user_movie = movie.user_movies.first
               if !user_movie.nil? 
                 if user_movie.watched == true
@@ -1100,10 +1125,10 @@ class Movie < ActiveRecord::Base
               end
             end            
           else
-            id_map = @movies.map{|m| m.id}        
+            id_map = movies.map{|m| m.id}        
             current_user_movies = UserMovie.where(:user_id => current_user.id, :movie_id => id_map)
                   
-            @movies.each do |movie|
+            movies.each do |movie|
               user_movie = current_user_movies.detect{|m| m.movie_id == movie.id }          
               if !user_movie.nil? 
                 if user_movie.watched == true
@@ -1126,10 +1151,10 @@ class Movie < ActiveRecord::Base
         list = List.find_by_name_and_list_type('Trending', 'official')
         #logger.info "MOU LISR: " + Movie.first.list_movies.to_yaml
         if list
-          @movies = Movie.includes(:list_movies).where("list_movies.list_id = ?", list.id).references(:list_movies).order("list_movies.list_order ASC").page(page).per(page_size)
+          movies = Movie.includes(:list_movies).where("list_movies.list_id = ?", list.id).references(:list_movies).order("list_movies.list_order ASC").page(page).per(page_size)
         end 
         #@movies = List.find_by_name_and_list_type('Trending', 'official').movies.page(page).per(48) 
-        if @movies
+        if movies
 =begin
         trakt = Trakt.new
         trakt.apikey = Rails.application.secrets.trakt_API
@@ -1146,9 +1171,9 @@ class Movie < ActiveRecord::Base
           @movies = @movies.sort_by { |r| order_hash[r.tmdb_id.to_s] }
 =end          
           if current_user.present? 
-            @user_movies = UserMovie.where("user_id = ? AND movie_id IN (?)", current_user.id, @movies.map(&:id))
-            @movies.each do |movie|
-              user_movie = @user_movies.find{|item| item[:movie_id] == movie.id}
+            user_movies = UserMovie.where("user_id = ? AND movie_id IN (?)", current_user.id, movies.map(&:id))
+            movies.each do |movie|
+              user_movie = user_movies.find{|item| item[:movie_id] == movie.id}
               if !user_movie.nil? 
                 if user_movie.watched == true
                   movie.watched = true
@@ -1165,11 +1190,11 @@ class Movie < ActiveRecord::Base
           #@movies =  Kaminari.paginate_array(@movies).page(page).per(48) 
         else # search popular
           logger.info "SEARCH POPULAR"
-          @movies = Movie.search "*", where: {imdb_num_votes: {gt: 150000}}, order: {imdb_rating: :desc, imdb_num_votes: :desc}, page: page, per_page: page_size
+          movies = Movie.search "*", where: {imdb_num_votes: {gt: 150000}}, order: {imdb_rating: :desc, imdb_num_votes: :desc}, page: page, per_page: page_size
           if current_user.present? 
-            @user_movies = UserMovie.where("user_id = ? AND movie_id IN (?)", current_user.id, @movies.map(&:id))
-            @movies.each do |movie|
-              user_movie = @user_movies.find{|item| item[:movie_id] == movie.id}
+            user_movies = UserMovie.where("user_id = ? AND movie_id IN (?)", current_user.id, movies.map(&:id))
+            movies.each do |movie|
+              user_movie = user_movies.find{|item| item[:movie_id] == movie.id}
               if !user_movie.nil? 
                 if user_movie.watched == true
                   movie.watched = true
@@ -1186,15 +1211,15 @@ class Movie < ActiveRecord::Base
         end 
       end
     end    
-    return @movies
+    return movies
   end
   
   def self.generate_conditions(params, where, search_params)
     search_params = ""; 
-    @genres = Genre.all.map(&:name).map(&:downcase)
+    genres = Genre.all.map(&:name).map(&:downcase)
     params.each do |str| 
       case
-        when @genres.include?(str.downcase)
+        when genres.include?(str.downcase)
           where[:genres_name] = str.titleize
         when str.scan(/(^([0-9]|10)([.]\d+)*[+]$)/).flatten.first
           where[:imdb_rating] = {gte: str.to_f}
